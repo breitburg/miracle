@@ -32,7 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
           placeholder: 'Search',
           onResultSelected: (result) {},
         ),
-
+    
         builder: (context, scrollController) {
           return SidebarItems(
             currentIndex: 1,
@@ -84,7 +84,7 @@ class _HomeScreenState extends State<HomeScreen> {
         builder: (context) {
           return MacosScaffold(
             toolBar: ToolBar(
-              padding: const EdgeInsets.only(left: 15, right: 10),
+              padding: const EdgeInsets.only(left: 14, right: 10),
               leading: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -102,28 +102,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       MacosWindowScope.of(context).toggleSidebar();
                     },
                   ),
-                  const Gap(5),
-                  MacosIconButton(
-                    icon: MacosIcon(
-                      CupertinoIcons.plus_bubble,
-                      color: MacosTheme.brightnessOf(context).resolve(
-                        const Color.fromRGBO(0, 0, 0, 0.5),
-                        const Color.fromRGBO(255, 255, 255, 0.5),
-                      ),
-                      size: 20.0,
-                    ),
-                    boxConstraints: BoxConstraints(),
-                    onPressed: () {
-                      setState(() {
-                        history.clear();
-                        _controller.clear();
-                      });
-                    },
-                  ),
-                  const Gap(15),
+                  const Gap(10),
                   Text(
                     'Gemma 3',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                   if (false) ...[
                     const Gap(6),
@@ -165,10 +150,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   onPressed: () {},
                 ),
                 ToolBarIconButton(
-                  label: 'Open in Companion Chat',
-                  icon: MacosIcon(CupertinoIcons.square_on_square),
+                  label: 'New Chat',
+                  icon: MacosIcon(CupertinoIcons.plus_bubble),
                   showLabel: false,
-                  onPressed: () {},
+                  onPressed: () {
+                    _controller.clear();
+                    setState(() {
+                      history.clear();
+                    });
+                  },
                 ),
               ],
             ),
@@ -179,9 +169,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   ScrollController scrollController,
                 ) {
                   return ColoredBox(
-                    color: MacosTheme.brightnessOf(
-                      context,
-                    ).resolve(const Color(0xFFFFFFFF), const Color(0xFF323232)),
+                    color: MacosTheme.brightnessOf(context).resolve(
+                      const Color(0xFFFFFFFF),
+                      const Color(0xFF323232),
+                    ),
                     child: Column(
                       children: [
                         Expanded(
@@ -190,20 +181,23 @@ class _HomeScreenState extends State<HomeScreen> {
                             reverse: true,
                             padding: const EdgeInsets.all(20),
                             itemBuilder: (context, index) {
-                              final message = history.reversed.elementAt(index);
+                              final message = history.reversed.elementAt(
+                                index,
+                              );
                               final out = message is HumanChatMessage;
-
+    
                               final defaultTextStyle = MacosTheme.of(context)
                                   .typography
                                   .body
                                   .copyWith(fontSize: 14, height: 1.6);
-
+    
                               if (out) {
                                 return Align(
                                   alignment: Alignment.centerRight,
                                   child: ConstrainedBox(
                                     constraints: BoxConstraints(
-                                      maxWidth: MediaQuery.of(context).size.width *
+                                      maxWidth:
+                                          MediaQuery.of(context).size.width *
                                           0.6,
                                     ),
                                     child: Container(
@@ -220,7 +214,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                           const Color(0xFFF2F2F2),
                                           const Color(0xFF4D4D4D),
                                         ),
-                                        borderRadius: BorderRadius.circular(20),
+                                        borderRadius: BorderRadius.circular(
+                                          20,
+                                        ),
                                       ),
                                       child: Text(
                                         message.contentAsString,
@@ -230,34 +226,51 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                                 );
                               }
-
-                              return MarkdownBody(
-                                selectable: true,
-                                data: message.contentAsString,
-                                styleSheet: MarkdownStyleSheet(
-                                  p: defaultTextStyle,
-                                  blockquote: defaultTextStyle,
-                                  code: defaultTextStyle.copyWith(
-                                    fontFamily: 'Menlo',
-                                  ),
-                                  codeblockDecoration: BoxDecoration(
-                                    color: MacosTheme.brightnessOf(
-                                      context,
-                                    ).resolve(
-                                      const Color(0xFFEEEEEE),
-                                      const Color(0xFF3C3C3C),
+    
+                              return Padding(
+                                padding: EdgeInsets.all(14),
+                                child: MarkdownBody(
+                                  selectable: true,
+                                  data: message.contentAsString,
+                                  styleSheet: MarkdownStyleSheet(
+                                    p: defaultTextStyle,
+                                    blockquote: defaultTextStyle,
+                                    code: defaultTextStyle.copyWith(
+                                      fontFamily: 'Menlo',
                                     ),
-                                    borderRadius: BorderRadius.circular(10),
+                                    codeblockDecoration: BoxDecoration(
+                                      color: MacosTheme.brightnessOf(
+                                        context,
+                                      ).resolve(
+                                        const Color(0xFFEEEEEE),
+                                        const Color(0xFF3C3C3C),
+                                      ),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    codeblockPadding:
+                                        const EdgeInsets.symmetric(
+                                          horizontal: 14,
+                                          vertical: 8,
+                                        ),
+                                    h1:
+                                        MacosTheme.of(
+                                          context,
+                                        ).typography.title1,
+                                    h2:
+                                        MacosTheme.of(
+                                          context,
+                                        ).typography.title2,
+                                    h3:
+                                        MacosTheme.of(
+                                          context,
+                                        ).typography.title3,
+                                    listBullet: defaultTextStyle,
                                   ),
-                                  codeblockPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                  h1: MacosTheme.of(context).typography.title1,
-                                  h2: MacosTheme.of(context).typography.title2,
-                                  h3: MacosTheme.of(context).typography.title3,
-                                  listBullet: defaultTextStyle,
                                 ),
                               );
                             },
-                            separatorBuilder: (context, index) => const Gap(30),
+                            separatorBuilder:
+                                (context, index) => const Gap(14),
                             itemCount: history.length,
                           ),
                         ),
@@ -286,7 +299,12 @@ class _HomeScreenState extends State<HomeScreen> {
                               MacosTextField.borderless(
                                 autofocus: true,
                                 controller: _controller,
-                                padding: EdgeInsets.only(left: 14, right: 14, top: 14, bottom: 12),
+                                padding: EdgeInsets.only(
+                                  left: 14,
+                                  right: 14,
+                                  top: 14,
+                                  bottom: 12,
+                                ),
                                 style: TextStyle(fontSize: 14),
                                 placeholder: 'Ask anything',
                                 placeholderStyle: TextStyle(
@@ -301,39 +319,40 @@ class _HomeScreenState extends State<HomeScreen> {
                                   if (value.isEmpty) {
                                     return;
                                   }
-
+    
                                   final message = HumanChatMessage(
                                     content: ChatMessageContent.text(value),
                                   );
-
+    
                                   _controller.clear();
-
+    
                                   setState(() {
                                     history.add(message);
                                   });
-
-                                  final prompt = ChatPromptTemplate.fromPromptMessages([
-                                    SystemChatMessagePromptTemplate.fromTemplate(
-                                      'You are a helpful assistant who responds with messages no longer than 6 sentences. You love using Markdown formatting to ensure clarity and readability. You hate emojis.',
-                                    ),
-                                    MessagesPlaceholder(
-                                      variableName: 'chat_history',
-                                    ),
-                                  ]);
-
+    
+                                  final prompt =
+                                      ChatPromptTemplate.fromPromptMessages([
+                                        SystemChatMessagePromptTemplate.fromTemplate(
+                                          'You are a helpful assistant. You love using Markdown formatting to ensure clarity and readability. You hate emojis.',
+                                        ),
+                                        MessagesPlaceholder(
+                                          variableName: 'chat_history',
+                                        ),
+                                      ]);
+    
                                   final chain = prompt.pipe(chat);
-
+    
                                   final response = chain.stream({
                                     'chat_history': history,
                                   });
-
+    
                                   history.add(AIChatMessage(content: ''));
-
+    
                                   await for (final part in response) {
                                     if (history.isEmpty) {
                                       return;
                                     }
-
+    
                                     history.last = AIChatMessage(
                                       content:
                                           history.last.contentAsString +
@@ -344,7 +363,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                 },
                               ),
                               Padding(
-                                padding: const EdgeInsets.only(bottom: 10, left: 14, right: 10),
+                                padding: const EdgeInsets.only(
+                                  bottom: 10,
+                                  left: 14,
+                                  right: 10,
+                                ),
                                 child: Row(
                                   children: [
                                     MacosIcon(
@@ -354,7 +377,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                         context,
                                       ).resolve(
                                         const Color.fromRGBO(0, 0, 0, 0.5),
-                                        const Color.fromRGBO(255, 255, 255, 0.5),
+                                        const Color.fromRGBO(
+                                          255,
+                                          255,
+                                          255,
+                                          0.5,
+                                        ),
                                       ),
                                     ),
                                     const Gap(14),
@@ -365,7 +393,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                         context,
                                       ).resolve(
                                         const Color.fromRGBO(0, 0, 0, 0.5),
-                                        const Color.fromRGBO(255, 255, 255, 0.5),
+                                        const Color.fromRGBO(
+                                          255,
+                                          255,
+                                          255,
+                                          0.5,
+                                        ),
                                       ),
                                     ),
                                     const Gap(14),
@@ -376,7 +409,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                         context,
                                       ).resolve(
                                         const Color.fromRGBO(0, 0, 0, 0.5),
-                                        const Color.fromRGBO(255, 255, 255, 0.5),
+                                        const Color.fromRGBO(
+                                          255,
+                                          255,
+                                          255,
+                                          0.5,
+                                        ),
                                       ),
                                     ),
                                     const Spacer(),
@@ -389,7 +427,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                           duration: const Duration(
                                             milliseconds: 150,
                                           ),
-                                          transitionBuilder: (child, animation) {
+                                          transitionBuilder: (
+                                            child,
+                                            animation,
+                                          ) {
                                             return FadeTransition(
                                               opacity: animation,
                                               child: ScaleTransition(
