@@ -18,7 +18,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final chat = ChatOpenAI(
     baseUrl: 'http://localhost:11434/v1',
     apiKey: 'ollama',
-    defaultOptions: ChatOpenAIOptions(model: 'phi4-mini'),
+    defaultOptions: ChatOpenAIOptions(model: 'gemma3:4b-it-qat'),
   );
 
   final history = <ChatMessage>[];
@@ -57,6 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               SidebarItem(label: Text('Today'), section: true),
+              SidebarItem(label: Text('Binary programming')),
               SidebarItem(label: Text('Why is the sky blue')),
               SidebarItem(label: Text('Yesterday'), section: true),
               SidebarItem(
@@ -121,28 +122,30 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const Gap(15),
                   Text(
-                    'Phi-4 mini',
+                    'Gemma 3',
                     style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
                   ),
-                  const Gap(5),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 2,
-                      horizontal: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Color.fromRGBO(127, 127, 127, 0.2),
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                    child: Text(
-                      '3.8B',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.5,
+                  if (false) ...[
+                    const Gap(6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 2,
+                        horizontal: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Color.fromRGBO(127, 127, 127, 0.15),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                      child: Text(
+                        '4B',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.5,
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                   const Gap(5),
                   MacosIcon(
                     CupertinoIcons.chevron_right,
@@ -175,225 +178,270 @@ class _HomeScreenState extends State<HomeScreen> {
                   BuildContext context,
                   ScrollController scrollController,
                 ) {
-                  return Column(
-                    children: [
-                      Expanded(
-                        child: ListView.separated(
-                          reverse: true,
-                          padding: const EdgeInsets.all(30),
-                          itemBuilder: (context, index) {
-                            final message = history.reversed.elementAt(index);
-                            final out = message is HumanChatMessage;
+                  return ColoredBox(
+                    color: MacosTheme.brightnessOf(
+                      context,
+                    ).resolve(const Color(0xFFFFFFFF), const Color(0xFF323232)),
+                    child: Column(
+                      children: [
+                        Expanded(
+                          child: ListView.separated(
+                            cacheExtent: 10000,
+                            reverse: true,
+                            padding: const EdgeInsets.all(20),
+                            itemBuilder: (context, index) {
+                              final message = history.reversed.elementAt(index);
+                              final out = message is HumanChatMessage;
 
-                            if (out) {
-                              return Text(
-                                message.contentAsString,
-                                style: MacosTheme.of(
-                                  context,
-                                ).typography.body.copyWith(
-                                  fontSize: 14,
-                                  color: MacosColors.systemGrayColor,
-                                ),
-                                textAlign: TextAlign.end,
-                              );
-                            }
+                              final defaultTextStyle = MacosTheme.of(context)
+                                  .typography
+                                  .body
+                                  .copyWith(fontSize: 14, height: 1.6);
 
-                            final defaultTextStyle = MacosTheme.of(context)
-                                .typography
-                                .body
-                                .copyWith(fontSize: 14, height: 1.6);
-
-                            return MarkdownBody(
-                              selectable: true,
-                              data: message.contentAsString,
-                              styleSheet: MarkdownStyleSheet(
-                                p: defaultTextStyle,
-                                blockquote: defaultTextStyle,
-                                h1: MacosTheme.of(context).typography.title1,
-                                h2: MacosTheme.of(context).typography.title2,
-                                h3: MacosTheme.of(context).typography.title3,
-                                listBullet: defaultTextStyle,
-                              ),
-                            );
-                          },
-                          separatorBuilder: (context, index) => const Gap(30),
-                          itemCount: history.length,
-                        ),
-                      ),
-                      Container(
-                        margin: const EdgeInsets.only(
-                          bottom: 15,
-                          left: 15,
-                          right: 15,
-                        ),
-                        padding: const EdgeInsets.only(
-                          left: 15,
-                          right: 10,
-                          bottom: 10,
-                          top: 15,
-                        ),
-                        decoration: BoxDecoration(
-                          border: Border.all(
-                            color: MacosTheme.brightnessOf(context).resolve(
-                              const Color.fromRGBO(0, 0, 0, 0.1),
-                              const Color.fromRGBO(255, 255, 255, 0.1),
-                            ),
-                          ),
-                          color: MacosTheme.brightnessOf(context).resolve(
-                            const Color(0xFFEEEEEE),
-                            const Color(0xFF3C3C3C),
-                          ),
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            MacosTextField.borderless(
-                              controller: _controller,
-                              padding: EdgeInsets.zero,
-                              style: TextStyle(fontSize: 14),
-                              placeholder: 'Ask anything',
-                              placeholderStyle: TextStyle(
-                                color: MacosTheme.brightnessOf(context).resolve(
-                                  Color.fromRGBO(0, 0, 0, 0.5),
-                                  Color.fromRGBO(255, 255, 255, 0.5),
-                                ),
-                              ),
-                              onSubmitted: (value) async {
-                                if (value.isEmpty) {
-                                  return;
-                                }
-
-                                final message = HumanChatMessage(
-                                  content: ChatMessageContent.text(value),
-                                );
-
-                                _controller.clear();
-
-                                setState(() {
-                                  history.add(message);
-                                });
-
-                                final prompt = ChatPromptTemplate.fromPromptMessages([
-                                  SystemChatMessagePromptTemplate.fromTemplate(
-                                    'You are a helpful assistant. You use Markdown formatting to ensure clarity and readability.',
-                                  ),
-                                  MessagesPlaceholder(
-                                    variableName: 'chat_history',
-                                  ),
-                                ]);
-
-                                final chain = prompt.pipe(chat);
-
-                                final response = chain.stream({
-                                  'chat_history': history,
-                                });
-
-                                history.add(AIChatMessage(content: ''));
-
-                                await for (final part in response) {
-                                  history.last = AIChatMessage(
-                                    content:
-                                        history.last.contentAsString +
-                                        part.outputAsString,
-                                  );
-                                  setState(() {});
-                                }
-                              },
-                            ),
-                            const Gap(15),
-                            Row(
-                              children: [
-                                MacosIcon(
-                                  CupertinoIcons.plus,
-                                  size: 20,
-                                  color: MacosTheme.brightnessOf(
-                                    context,
-                                  ).resolve(
-                                    const Color.fromRGBO(0, 0, 0, 0.5),
-                                    const Color.fromRGBO(255, 255, 255, 0.5),
-                                  ),
-                                ),
-                                const Gap(15),
-                                MacosIcon(
-                                  CupertinoIcons.globe,
-                                  size: 20,
-                                  color: MacosTheme.brightnessOf(
-                                    context,
-                                  ).resolve(
-                                    const Color.fromRGBO(0, 0, 0, 0.5),
-                                    const Color.fromRGBO(255, 255, 255, 0.5),
-                                  ),
-                                ),
-                                const Gap(15),
-                                MacosIcon(
-                                  CupertinoIcons.cursor_rays,
-                                  size: 20,
-                                  color: MacosTheme.brightnessOf(
-                                    context,
-                                  ).resolve(
-                                    const Color.fromRGBO(0, 0, 0, 0.5),
-                                    const Color.fromRGBO(255, 255, 255, 0.5),
-                                  ),
-                                ),
-                                const Spacer(),
-                                MacosIcon(
-                                  CupertinoIcons.mic,
-                                  size: 20,
-                                  color: MacosTheme.brightnessOf(
-                                    context,
-                                  ).resolve(
-                                    const Color.fromRGBO(0, 0, 0, 0.5),
-                                    const Color.fromRGBO(255, 255, 255, 0.5),
-                                  ),
-                                ),
-                                const Gap(15),
-                                AnimatedBuilder(
-                                  animation: _controller,
-                                  builder: (_, __) {
-                                    return Container(
-                                      alignment: Alignment.center,
-                                      constraints: BoxConstraints.tight(
-                                        Size.square(32),
+                              if (out) {
+                                return Align(
+                                  alignment: Alignment.centerRight,
+                                  child: ConstrainedBox(
+                                    constraints: BoxConstraints(
+                                      maxWidth: MediaQuery.of(context).size.width *
+                                          0.6,
+                                    ),
+                                    child: Container(
+                                      padding: const EdgeInsets.only(
+                                        top: 4,
+                                        bottom: 8,
+                                        left: 14,
+                                        right: 14,
                                       ),
                                       decoration: BoxDecoration(
                                         color: MacosTheme.brightnessOf(
                                           context,
                                         ).resolve(
-                                          MacosColors.black,
-                                          MacosColors.white,
+                                          const Color(0xFFF2F2F2),
+                                          const Color(0xFF4D4D4D),
                                         ),
-                                        shape: BoxShape.circle,
+                                        borderRadius: BorderRadius.circular(20),
                                       ),
-                                      child: AnimatedSwitcher(
-                                        duration: const Duration(
-                                          milliseconds: 100,
-                                        ),
-                                        child: Icon(
-                                          key: ValueKey(
-                                            _controller.text.isEmpty,
-                                          ),
-                                          _controller.text.isEmpty
-                                              ? CupertinoIcons.waveform
-                                              : CupertinoIcons.arrow_up,
-                                          size: 20,
-                                          color: MacosTheme.brightnessOf(
-                                            context,
-                                          ).resolve(
-                                            MacosColors.white,
-                                            MacosColors.black,
-                                          ),
-                                        ),
+                                      child: Text(
+                                        message.contentAsString,
+                                        style: defaultTextStyle,
                                       ),
-                                    );
-                                  },
+                                    ),
+                                  ),
+                                );
+                              }
+
+                              return MarkdownBody(
+                                selectable: true,
+                                data: message.contentAsString,
+                                styleSheet: MarkdownStyleSheet(
+                                  p: defaultTextStyle,
+                                  blockquote: defaultTextStyle,
+                                  code: defaultTextStyle.copyWith(
+                                    fontFamily: 'Menlo',
+                                  ),
+                                  codeblockDecoration: BoxDecoration(
+                                    color: MacosTheme.brightnessOf(
+                                      context,
+                                    ).resolve(
+                                      const Color(0xFFEEEEEE),
+                                      const Color(0xFF3C3C3C),
+                                    ),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  codeblockPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                  h1: MacosTheme.of(context).typography.title1,
+                                  h2: MacosTheme.of(context).typography.title2,
+                                  h3: MacosTheme.of(context).typography.title3,
+                                  listBullet: defaultTextStyle,
                                 ),
-                              ],
-                            ),
-                          ],
+                              );
+                            },
+                            separatorBuilder: (context, index) => const Gap(30),
+                            itemCount: history.length,
+                          ),
                         ),
-                      ),
-                    ],
+                        Container(
+                          margin: const EdgeInsets.only(
+                            bottom: 16,
+                            left: 16,
+                            right: 16,
+                          ),
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: MacosTheme.brightnessOf(context).resolve(
+                                const Color(0xFFDADADA),
+                                const Color(0xFF505050),
+                              ),
+                            ),
+                            color: MacosTheme.brightnessOf(context).resolve(
+                              const Color(0xFFF2F2F2),
+                              const Color(0xFF3C3C3C),
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              MacosTextField.borderless(
+                                autofocus: true,
+                                controller: _controller,
+                                padding: EdgeInsets.only(left: 14, right: 14, top: 14, bottom: 12),
+                                style: TextStyle(fontSize: 14),
+                                placeholder: 'Ask anything',
+                                placeholderStyle: TextStyle(
+                                  color: MacosTheme.brightnessOf(
+                                    context,
+                                  ).resolve(
+                                    Color.fromRGBO(0, 0, 0, 0.5),
+                                    Color.fromRGBO(255, 255, 255, 0.5),
+                                  ),
+                                ),
+                                onSubmitted: (value) async {
+                                  if (value.isEmpty) {
+                                    return;
+                                  }
+
+                                  final message = HumanChatMessage(
+                                    content: ChatMessageContent.text(value),
+                                  );
+
+                                  _controller.clear();
+
+                                  setState(() {
+                                    history.add(message);
+                                  });
+
+                                  final prompt = ChatPromptTemplate.fromPromptMessages([
+                                    SystemChatMessagePromptTemplate.fromTemplate(
+                                      'You are a helpful assistant who responds with messages no longer than 6 sentences. You love using Markdown formatting to ensure clarity and readability. You hate emojis.',
+                                    ),
+                                    MessagesPlaceholder(
+                                      variableName: 'chat_history',
+                                    ),
+                                  ]);
+
+                                  final chain = prompt.pipe(chat);
+
+                                  final response = chain.stream({
+                                    'chat_history': history,
+                                  });
+
+                                  history.add(AIChatMessage(content: ''));
+
+                                  await for (final part in response) {
+                                    if (history.isEmpty) {
+                                      return;
+                                    }
+
+                                    history.last = AIChatMessage(
+                                      content:
+                                          history.last.contentAsString +
+                                          part.outputAsString,
+                                    );
+                                    setState(() {});
+                                  }
+                                },
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 10, left: 14, right: 10),
+                                child: Row(
+                                  children: [
+                                    MacosIcon(
+                                      CupertinoIcons.plus,
+                                      size: 20,
+                                      color: MacosTheme.brightnessOf(
+                                        context,
+                                      ).resolve(
+                                        const Color.fromRGBO(0, 0, 0, 0.5),
+                                        const Color.fromRGBO(255, 255, 255, 0.5),
+                                      ),
+                                    ),
+                                    const Gap(14),
+                                    MacosIcon(
+                                      CupertinoIcons.globe,
+                                      size: 20,
+                                      color: MacosTheme.brightnessOf(
+                                        context,
+                                      ).resolve(
+                                        const Color.fromRGBO(0, 0, 0, 0.5),
+                                        const Color.fromRGBO(255, 255, 255, 0.5),
+                                      ),
+                                    ),
+                                    const Gap(14),
+                                    MacosIcon(
+                                      CupertinoIcons.cursor_rays,
+                                      size: 20,
+                                      color: MacosTheme.brightnessOf(
+                                        context,
+                                      ).resolve(
+                                        const Color.fromRGBO(0, 0, 0, 0.5),
+                                        const Color.fromRGBO(255, 255, 255, 0.5),
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    AnimatedBuilder(
+                                      animation: _controller,
+                                      builder: (context, child) {
+                                        return AnimatedSwitcher(
+                                          switchInCurve: Curves.easeOut,
+                                          switchOutCurve: Curves.easeIn,
+                                          duration: const Duration(
+                                            milliseconds: 150,
+                                          ),
+                                          transitionBuilder: (child, animation) {
+                                            return FadeTransition(
+                                              opacity: animation,
+                                              child: ScaleTransition(
+                                                scale: Tween(
+                                                  begin: 0.0,
+                                                  end: 1.0,
+                                                ).animate(animation),
+                                                child: child,
+                                              ),
+                                            );
+                                          },
+                                          child: Container(
+                                            key: ValueKey(
+                                              _controller.text.isEmpty,
+                                            ),
+                                            alignment: Alignment.center,
+                                            constraints: BoxConstraints.tight(
+                                              Size.square(32),
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: MacosTheme.brightnessOf(
+                                                context,
+                                              ).resolve(
+                                                MacosColors.black,
+                                                MacosColors.white,
+                                              ),
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: Icon(
+                                              _controller.text.isEmpty
+                                                  ? CupertinoIcons.mic_fill
+                                                  : CupertinoIcons.arrow_up,
+                                              size: 20,
+                                              color: MacosTheme.brightnessOf(
+                                                context,
+                                              ).resolve(
+                                                MacosColors.white,
+                                                MacosColors.black,
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   );
                 },
               ),

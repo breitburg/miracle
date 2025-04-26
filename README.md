@@ -5,4 +5,5 @@ An independent, model-agnostic recreation of the [ChatGPT app](https://openai.co
 > [!WARNING]  
 > Early stages of development. Expect bugs and missing features.
 
-![Collapsed Window](previews/collapsed.png) 
+
+<img src="previews/collapsed.png" alt="Collapsed Window" width="500px"/>
