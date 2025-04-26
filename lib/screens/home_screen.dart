@@ -16,9 +16,9 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final chat = ChatOpenAI(
-    baseUrl: 'https://api.studio.nebius.com/v1',
-    apiKey: String.fromEnvironment('NEBIUS_API_KEY'),
-    defaultOptions: ChatOpenAIOptions(model: 'microsoft/phi-4'),
+    baseUrl: 'http://localhost:11434/v1',
+    apiKey: 'ollama',
+    defaultOptions: ChatOpenAIOptions(model: 'phi4-mini'),
   );
 
   final history = <ChatMessage>[];
@@ -121,8 +121,27 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const Gap(15),
                   Text(
-                    'Phi-4',
+                    'Phi-4 mini',
                     style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                  ),
+                  const Gap(5),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 2,
+                      horizontal: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Color.fromRGBO(127, 127, 127, 0.2),
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: Text(
+                      '3.8B',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
                   ),
                   const Gap(5),
                   MacosIcon(
@@ -179,16 +198,21 @@ class _HomeScreenState extends State<HomeScreen> {
                               );
                             }
 
+                            final defaultTextStyle = MacosTheme.of(context)
+                                .typography
+                                .body
+                                .copyWith(fontSize: 14, height: 1.6);
+
                             return MarkdownBody(
+                              selectable: true,
                               data: message.contentAsString,
                               styleSheet: MarkdownStyleSheet(
-                                p: MacosTheme.of(context).typography.body
-                                    .copyWith(fontSize: 14, height: 1.6),
-                                blockquote:
-                                    MacosTheme.of(context).typography.body,
+                                p: defaultTextStyle,
+                                blockquote: defaultTextStyle,
                                 h1: MacosTheme.of(context).typography.title1,
                                 h2: MacosTheme.of(context).typography.title2,
                                 h3: MacosTheme.of(context).typography.title3,
+                                listBullet: defaultTextStyle,
                               ),
                             );
                           },
@@ -252,7 +276,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                                 final prompt = ChatPromptTemplate.fromPromptMessages([
                                   SystemChatMessagePromptTemplate.fromTemplate(
-                                    'You are a helpful assistant who responds in a concise and informative manner. You use markdown formatting to enhance your responses, without using h1, h2, etc.',
+                                    'You are a helpful assistant. You use Markdown formatting to ensure clarity and readability.',
                                   ),
                                   MessagesPlaceholder(
                                     variableName: 'chat_history',
@@ -324,30 +348,45 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                                 ),
                                 const Gap(15),
-                                Container(
-                                  alignment: Alignment.center,
-                                  constraints: BoxConstraints.tight(
-                                    Size.square(32),
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: MacosTheme.brightnessOf(
-                                      context,
-                                    ).resolve(
-                                      MacosColors.black,
-                                      MacosColors.white,
-                                    ),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Icon(
-                                    CupertinoIcons.arrow_up,
-                                    size: 20,
-                                    color: MacosTheme.brightnessOf(
-                                      context,
-                                    ).resolve(
-                                      MacosColors.white,
-                                      MacosColors.black,
-                                    ),
-                                  ),
+                                AnimatedBuilder(
+                                  animation: _controller,
+                                  builder: (_, __) {
+                                    return Container(
+                                      alignment: Alignment.center,
+                                      constraints: BoxConstraints.tight(
+                                        Size.square(32),
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: MacosTheme.brightnessOf(
+                                          context,
+                                        ).resolve(
+                                          MacosColors.black,
+                                          MacosColors.white,
+                                        ),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: AnimatedSwitcher(
+                                        duration: const Duration(
+                                          milliseconds: 100,
+                                        ),
+                                        child: Icon(
+                                          key: ValueKey(
+                                            _controller.text.isEmpty,
+                                          ),
+                                          _controller.text.isEmpty
+                                              ? CupertinoIcons.waveform
+                                              : CupertinoIcons.arrow_up,
+                                          size: 20,
+                                          color: MacosTheme.brightnessOf(
+                                            context,
+                                          ).resolve(
+                                            MacosColors.white,
+                                            MacosColors.black,
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
                                 ),
                               ],
                             ),
