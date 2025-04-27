@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:gap/gap.dart';
 import 'package:langchain/langchain.dart';
@@ -16,9 +17,9 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final chat = ChatOpenAI(
-    baseUrl: 'http://localhost:11434/v1',
-    apiKey: 'ollama',
-    defaultOptions: ChatOpenAIOptions(model: 'gemma3:4b-it-qat'),
+    baseUrl: 'https://api.studio.nebius.com/v1',
+    apiKey: '',
+    defaultOptions: ChatOpenAIOptions(model: 'meta-llama/Llama-3.3-70B-Instruct'),
   );
 
   final history = <ChatMessage>[];
@@ -32,7 +33,6 @@ class _HomeScreenState extends State<HomeScreen> {
           placeholder: 'Search',
           onResultSelected: (result) {},
         ),
-    
         builder: (context, scrollController) {
           return SidebarItems(
             currentIndex: 1,
@@ -104,13 +104,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const Gap(10),
                   Text(
-                    'Gemma 3',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                    ),
+                    'Llama 3.3',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
                   ),
-                  if (false) ...[
+                  if (true) ...[
                     const Gap(6),
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -122,7 +119,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         borderRadius: BorderRadius.circular(5),
                       ),
                       child: Text(
-                        '4B',
+                        '70B',
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
@@ -169,10 +166,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   ScrollController scrollController,
                 ) {
                   return ColoredBox(
-                    color: MacosTheme.brightnessOf(context).resolve(
-                      const Color(0xFFFFFFFF),
-                      const Color(0xFF323232),
-                    ),
+                    color: MacosTheme.brightnessOf(
+                      context,
+                    ).resolve(const Color(0xFFFFFFFF), const Color(0xFF323232)),
                     child: Column(
                       children: [
                         Expanded(
@@ -181,16 +177,14 @@ class _HomeScreenState extends State<HomeScreen> {
                             reverse: true,
                             padding: const EdgeInsets.all(20),
                             itemBuilder: (context, index) {
-                              final message = history.reversed.elementAt(
-                                index,
-                              );
+                              final message = history.reversed.elementAt(index);
                               final out = message is HumanChatMessage;
-    
+
                               final defaultTextStyle = MacosTheme.of(context)
                                   .typography
                                   .body
                                   .copyWith(fontSize: 14, height: 1.6);
-    
+
                               if (out) {
                                 return Align(
                                   alignment: Alignment.centerRight,
@@ -214,11 +208,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                           const Color(0xFFF2F2F2),
                                           const Color(0xFF4D4D4D),
                                         ),
-                                        borderRadius: BorderRadius.circular(
-                                          20,
-                                        ),
+                                        borderRadius: BorderRadius.circular(20),
                                       ),
-                                      child: Text(
+                                      child: SelectableText(
                                         message.contentAsString,
                                         style: defaultTextStyle,
                                       ),
@@ -226,51 +218,74 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                                 );
                               }
-    
-                              return Padding(
-                                padding: EdgeInsets.all(14),
-                                child: MarkdownBody(
-                                  selectable: true,
-                                  data: message.contentAsString,
-                                  styleSheet: MarkdownStyleSheet(
-                                    p: defaultTextStyle,
-                                    blockquote: defaultTextStyle,
-                                    code: defaultTextStyle.copyWith(
-                                      fontFamily: 'Menlo',
+
+                              return AnimatedSwitcher(
+                                layoutBuilder: (
+                                  currentChild,
+                                  previousChildren,
+                                ) {
+                                  return Padding(
+                                    padding: const EdgeInsets.all(4),
+                                    child: Stack(
+                                      alignment: Alignment.bottomLeft,
+                                      children: [
+                                        ...previousChildren,
+                                        currentChild!,
+                                      ],
                                     ),
-                                    codeblockDecoration: BoxDecoration(
-                                      color: MacosTheme.brightnessOf(
-                                        context,
-                                      ).resolve(
-                                        const Color(0xFFEEEEEE),
-                                        const Color(0xFF3C3C3C),
-                                      ),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    codeblockPadding:
-                                        const EdgeInsets.symmetric(
-                                          horizontal: 14,
-                                          vertical: 8,
+                                  );
+                                },
+                                duration: const Duration(milliseconds: 150),
+                                child:
+                                    message.contentAsString.isEmpty
+                                        ? Align(
+                                          alignment: Alignment.centerLeft,
+                                          child: CupertinoActivityIndicator(
+                                            radius: 8,
+                                          ),
+                                        )
+                                        : MarkdownBody(
+                                          selectable: true,
+                                          data: message.contentAsString,
+                                          styleSheet: MarkdownStyleSheet(
+                                            p: defaultTextStyle,
+                                            blockquote: defaultTextStyle,
+                                            code: defaultTextStyle.copyWith(
+                                              fontFamily: 'Menlo',
+                                            ),
+                                            codeblockDecoration: BoxDecoration(
+                                              color: MacosTheme.brightnessOf(
+                                                context,
+                                              ).resolve(
+                                                const Color(0xFFEEEEEE),
+                                                const Color(0xFF3C3C3C),
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                            ),
+                                            codeblockPadding:
+                                                const EdgeInsets.symmetric(
+                                                  horizontal: 14,
+                                                  vertical: 8,
+                                                ),
+                                            h1:
+                                                MacosTheme.of(
+                                                  context,
+                                                ).typography.title1,
+                                            h2:
+                                                MacosTheme.of(
+                                                  context,
+                                                ).typography.title2,
+                                            h3:
+                                                MacosTheme.of(
+                                                  context,
+                                                ).typography.title3,
+                                            listBullet: defaultTextStyle,
+                                          ),
                                         ),
-                                    h1:
-                                        MacosTheme.of(
-                                          context,
-                                        ).typography.title1,
-                                    h2:
-                                        MacosTheme.of(
-                                          context,
-                                        ).typography.title2,
-                                    h3:
-                                        MacosTheme.of(
-                                          context,
-                                        ).typography.title3,
-                                    listBullet: defaultTextStyle,
-                                  ),
-                                ),
                               );
                             },
-                            separatorBuilder:
-                                (context, index) => const Gap(14),
+                            separatorBuilder: (context, index) => const Gap(14),
                             itemCount: history.length,
                           ),
                         ),
@@ -319,45 +334,72 @@ class _HomeScreenState extends State<HomeScreen> {
                                   if (value.isEmpty) {
                                     return;
                                   }
-    
+
                                   final message = HumanChatMessage(
                                     content: ChatMessageContent.text(value),
                                   );
-    
+
                                   _controller.clear();
-    
+
                                   setState(() {
                                     history.add(message);
                                   });
-    
-                                  final prompt =
-                                      ChatPromptTemplate.fromPromptMessages([
-                                        SystemChatMessagePromptTemplate.fromTemplate(
-                                          'You are a helpful assistant. You love using Markdown formatting to ensure clarity and readability. You hate emojis.',
-                                        ),
-                                        MessagesPlaceholder(
-                                          variableName: 'chat_history',
-                                        ),
-                                      ]);
-    
-                                  final chain = prompt.pipe(chat);
-    
-                                  final response = chain.stream({
-                                    'chat_history': history,
-                                  });
-    
-                                  history.add(AIChatMessage(content: ''));
-    
-                                  await for (final part in response) {
-                                    if (history.isEmpty) {
-                                      return;
+
+                                  try {
+                                    final prompt =
+                                        ChatPromptTemplate.fromPromptMessages([
+                                          SystemChatMessagePromptTemplate.fromTemplate(
+                                            'You are a helpful assistant. You love using Markdown formatting to ensure clarity and readability. You hate emojis and overly long or complex responses.',
+                                          ),
+                                          MessagesPlaceholder(
+                                            variableName: 'chat_history',
+                                          ),
+                                        ]);
+
+                                    final chain = prompt.pipe(chat);
+
+                                    final response = chain.stream({
+                                      'chat_history': history,
+                                    });
+
+                                    history.add(AIChatMessage(content: ''));
+
+                                    await for (final part in response) {
+                                      if (history.isEmpty) {
+                                        return;
+                                      }
+
+                                      history.last = AIChatMessage(
+                                        content:
+                                            history.last.contentAsString +
+                                            part.outputAsString,
+                                      );
+                                      setState(() {});
                                     }
-    
-                                    history.last = AIChatMessage(
-                                      content:
-                                          history.last.contentAsString +
-                                          part.outputAsString,
+                                  } catch (e) {
+                                    setState(() => history.removeLast());
+                                    showMacosAlertDialog(
+                                      context: context,
+                                      builder: (context) {
+                                        return MacosAlertDialog(
+                                          title: const Text('Error'),
+                                          message: Text(e.toString()),
+                                          primaryButton: PushButton(
+                                            onPressed: () {
+                                              Navigator.of(context).pop();
+                                            },
+                                            controlSize: ControlSize.large,
+                                            child: const Text('OK'),
+                                          ),
+                                          appIcon: const MacosIcon(
+                                            CupertinoIcons
+                                                .exclamationmark_circle,
+                                            size: 20,
+                                          ),
+                                        );
+                                      },
                                     );
+                                  } finally {
                                     setState(() {});
                                   }
                                 },
@@ -385,9 +427,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                         ),
                                       ),
                                     ),
-                                    const Gap(14),
+                                    const Gap(16),
                                     MacosIcon(
-                                      CupertinoIcons.globe,
+                                      CupertinoIcons.photo_camera,
                                       size: 20,
                                       color: MacosTheme.brightnessOf(
                                         context,
@@ -401,22 +443,22 @@ class _HomeScreenState extends State<HomeScreen> {
                                         ),
                                       ),
                                     ),
-                                    const Gap(14),
-                                    MacosIcon(
-                                      CupertinoIcons.cursor_rays,
-                                      size: 20,
-                                      color: MacosTheme.brightnessOf(
-                                        context,
-                                      ).resolve(
-                                        const Color.fromRGBO(0, 0, 0, 0.5),
-                                        const Color.fromRGBO(
-                                          255,
-                                          255,
-                                          255,
-                                          0.5,
-                                        ),
-                                      ),
-                                    ),
+                                    // const Gap(14),
+                                    // MacosIcon(
+                                    //   CupertinoIcons.cursor_rays,
+                                    //   size: 20,
+                                    //   color: MacosTheme.brightnessOf(
+                                    //     context,
+                                    //   ).resolve(
+                                    //     const Color.fromRGBO(0, 0, 0, 0.5),
+                                    //     const Color.fromRGBO(
+                                    //       255,
+                                    //       255,
+                                    //       255,
+                                    //       0.5,
+                                    //     ),
+                                    //   ),
+                                    // ),
                                     const Spacer(),
                                     AnimatedBuilder(
                                       animation: _controller,
