@@ -1,0 +1,24 @@
+# Stable entry points for @system_libs. Third-party crate repos cannot see the
+# apparent name @system_libs, but every repo can see the main repo as @@, so
+# crate annotations in MODULE.bazel point here.
+
+_LIBS = [
+    "cairo",
+    "gdk_pixbuf",
+    "gio",
+    "glib",
+    "gobject",
+    "graphene",
+    "gtk4",
+    "libadwaita",
+    "pango",
+]
+
+[
+    alias(
+        name = lib,
+        actual = "@system_libs//:" + lib,
+        visibility = ["//visibility:public"],
+    )
+    for lib in _LIBS
+]

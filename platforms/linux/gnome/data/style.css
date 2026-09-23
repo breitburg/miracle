@@ -1,0 +1,43 @@
+/* A user message: the fill of a plain Adwaita button, without a shadow. */
+.bubble {
+  padding: 12px 16px;
+  border-radius: 24px;
+  background-color: color-mix(in srgb, currentColor 10%, transparent);
+}
+
+/* Message actions: 34px buttons around 14px icons. A negative horizontal
+ * margin of (34 - 14) / 2 = 10px makes each button take only its icon's
+ * width, so the icons line up with the message text, while the hover box
+ * and the click area keep the full 34px. Adwaita does the same for
+ * scrollbar sliders. The row's 20px spacing (2 * 10px) keeps click areas
+ * apart. Vertically the buttons keep their full size. */
+.message-actions > button {
+  margin: 0 -10px;
+}
+
+/* A message row. Padding, not widget margins, so the hover area that
+ * shows the actions covers the whole row. The list drops Adwaita's 2px row
+ * padding for the same reason; it also lines the text up with the
+ * composer. */
+listview.message-list > row {
+  padding: 0;
+}
+
+.message {
+  padding: var(--content-vertical-padding) var(--content-padding);
+}
+
+/* Message actions show only while the pointer is over the message, or
+ * while one of its buttons has keyboard focus. `:focus-visible` limits
+ * focus to the keyboard: a clicked button keeps focus, and without it its
+ * actions would stay after the pointer leaves. Opacity, not visibility,
+ * so the row keeps its height and nothing moves. */
+.message .message-actions {
+  opacity: 0;
+  transition: opacity 150ms ease-out;
+}
+
+.message:hover .message-actions,
+.message:focus-within:focus-visible .message-actions {
+  opacity: 1;
+}

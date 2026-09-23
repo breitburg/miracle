@@ -1,0 +1,4 @@
+# Not a real Cargo manifest: dependencies are managed by Bazel (MODULE.bazel).
+# UniFFI's proc-macros read the crate name from this file at expansion time.
+[package]
+name = "miracle_ffi"

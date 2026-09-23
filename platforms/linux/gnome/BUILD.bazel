@@ -1,0 +1,105 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary")
+load("//build:app.bzl", "APP_ID", "APP_NAME", "VERSION")
+load(":defs.bzl", "host_tool")
+
+# GNOME shell: GTK 4 + libadwaita, linked against the host (or Flatpak SDK)
+# libraries through @system_libs. Rust shells use //core directly, no FFI.
+
+_LINUX_ONLY = ["@platforms//os:linux"]
+
+genrule(
+    name = "ui",
+    srcs = glob(["data/ui/*.blp"]),
+    outs = ["data/ui/window.ui"],
+    cmd = host_tool("blueprint-compiler", "blueprint-compiler") +
+          " batch-compile $(RULEDIR)/data/ui " + package_name() + "/data/ui $(SRCS)",
+    target_compatible_with = _LINUX_ONLY,
+)
+
+genrule(
+    name = "gresource",
+    srcs = [
+        "data/resources.gresource.xml",
+        "data/style.css",
+        ":ui",
+    ],
+    outs = ["miracle.gresource"],
+    cmd = host_tool("glib-compile-resources", "glib2-devel / libglib2.0-dev") +
+          " --sourcedir=" + package_name() + "/data --sourcedir=$(RULEDIR)/data" +
+          " --target=$@ $(location data/resources.gresource.xml)",
+    target_compatible_with = _LINUX_ONLY,
+)
+
+_SUBST = "sed -e 's/@APP_ID@/{}/g' -e 's/@APP_NAME@/{}/g' -e 's/@VERSION@/{}/g' $< > $@".format(
+    APP_ID,
+    APP_NAME,
+    VERSION,
+)
+
+genrule(
+    name = "desktop_file",
+    srcs = ["data/app.desktop.in"],
+    outs = [APP_ID + ".desktop"],
+    cmd = _SUBST,
+)
+
+genrule(
+    name = "metainfo",
+    srcs = ["data/app.metainfo.xml.in"],
+    outs = [APP_ID + ".metainfo.xml"],
+    cmd = _SUBST,
+)
+
+genrule(
+    name = "icons",
+    srcs = [
+        "data/icons/app.svg",
+        "data/icons/app-symbolic.svg",
+    ],
+    outs = [
+        "icons/hicolor/scalable/apps/" + APP_ID + ".svg",
+        "icons/hicolor/symbolic/apps/" + APP_ID + "-symbolic.svg",
+    ],
+    cmd = "cp $(location data/icons/app.svg) $(location icons/hicolor/scalable/apps/{id}.svg) && ".format(id = APP_ID) +
+          "cp $(location data/icons/app-symbolic.svg) $(location icons/hicolor/symbolic/apps/{id}-symbolic.svg)".format(id = APP_ID),
+)
+
+rust_binary(
+    name = "miracle",
+    srcs = glob(["src/**/*.rs"]),
+    aliases = {
+        "@crates//:gtk4": "gtk",
+        "@crates//:libadwaita": "adw",
+    },
+    compile_data = [":gresource"],
+    edition = "2024",
+    rustc_env = {
+        "APP_ID": APP_ID,
+        # rules_rust makes this absolute, so include_bytes! finds it.
+        "MIRACLE_GRESOURCE": "$(execpath :gresource)",
+    },
+    target_compatible_with = _LINUX_ONLY,
+    deps = [
+        "//core:miracle_core",
+        "@crates//:gtk4",
+        "@crates//:libadwaita",
+    ],
+)
+
+# Same entry point on every platform: bazel run //platforms/<platform>:app.
+# The binary keeps its Linux program name, `miracle`.
+alias(
+    name = "app",
+    actual = ":miracle",
+)
+
+# Everything a package (Flatpak, distro) installs, in FHS layout under share/.
+filegroup(
+    name = "data_files",
+    srcs = [
+        ":desktop_file",
+        ":icons",
+        ":metainfo",
+    ],
+    visibility = ["//visibility:public"],
+)

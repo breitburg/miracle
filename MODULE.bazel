@@ -1,0 +1,97 @@
+module(
+    name = "miracle",
+    version = "0.1.0",
+)
+
+bazel_dep(name = "apple_support", version = "2.8.4")
+bazel_dep(name = "platforms", version = "1.1.0")
+bazel_dep(name = "rules_apple", version = "5.1.0")
+bazel_dep(name = "rules_cc", version = "0.2.25")
+bazel_dep(name = "rules_rust", version = "0.74.0")
+bazel_dep(name = "rules_swift", version = "4.1.1")
+
+# Rust toolchain.
+rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
+rust.toolchain(
+    edition = "2024",
+    versions = ["1.97.1"],
+)
+use_repo(rust, "rust_toolchains")
+
+register_toolchains("@rust_toolchains//:all")
+
+# Third-party crates.
+# Re-pin after changing specs: `CARGO_BAZEL_REPIN=1 bazel build //...`.
+crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+crate.spec(
+    default_features = False,
+    package = "uniffi",
+    repositories = ["crates"],
+    version = "=0.32.1",
+)
+
+# GNOME shell (Linux only). Features pin the minimum runtime: GTK 4.22 and
+# libadwaita 1.9 (GNOME 50).
+crate.spec(
+    features = ["v4_22"],
+    package = "gtk4",
+    repositories = ["crates"],
+    version = "0.11",
+)
+crate.spec(
+    features = ["v1_9"],
+    package = "libadwaita",
+    repositories = ["crates"],
+    version = "0.9",
+)
+
+# The gtk-rs *-sys build scripts only run pkg-config (via system-deps) to emit
+# link flags. Skip them and link the @system_libs cc_library instead, so no
+# Rust build action depends on the host's pkg-config.
+[
+    crate.annotation(
+        crate = sys_crate,
+        link_deps = ["@@//third_party/system_libs:" + lib],
+        gen_build_script = "off",
+        repositories = ["crates"],
+    )
+    for sys_crate, lib in {
+        "cairo-sys-rs": "cairo",
+        "gdk-pixbuf-sys": "gdk_pixbuf",
+        "gdk4-sys": "gtk4",
+        "gio-sys": "gio",
+        "glib-sys": "glib",
+        "gobject-sys": "gobject",
+        "graphene-sys": "graphene",
+        "gsk4-sys": "gtk4",
+        "gtk4-sys": "gtk4",
+        "libadwaita-sys": "libadwaita",
+        "pango-sys": "pango",
+    }.items()
+]
+
+crate.from_specs(
+    name = "crates",
+    cargo_lockfile = "//third_party:crates.Cargo.lock",
+)
+use_repo(crate, "crates")
+
+# Host C libraries for the GNOME shell, resolved once with pkg-config.
+system_libs = use_extension("//third_party/system_libs:extension.bzl", "system_libs")
+
+[
+    system_libs.library(name = name, pkg_config = pkg)
+    for name, pkg in {
+        "cairo": "cairo-gobject",
+        "gdk_pixbuf": "gdk-pixbuf-2.0",
+        "gio": "gio-2.0",
+        "glib": "glib-2.0",
+        "gobject": "gobject-2.0",
+        "graphene": "graphene-gobject-1.0",
+        "gtk4": "gtk4",
+        "libadwaita": "libadwaita-1",
+        "pango": "pango",
+    }.items()
+]
+
+use_repo(system_libs, "system_libs")

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>@APP_ID@</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>@APP_NAME@</name>
+  <summary>A shared-core chat app</summary>
+  <description>
+    <p>A chat app whose logic lives in a shared Rust core, rendered natively with GTK and libadwaita.</p>
+  </description>
+  <launchable type="desktop-id">@APP_ID@.desktop</launchable>
+  <developer id="dev.miracle">
+    <name>Ilia Breitburg</name>
+  </developer>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="@VERSION@" date="2026-09-22"/>
+  </releases>
+</component>

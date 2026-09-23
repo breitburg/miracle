@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=@APP_NAME@
+Comment=A shared-core chat app
+Exec=miracle
+Icon=@APP_ID@
+Terminal=false
+Type=Application
+Categories=Utility;GTK;
+StartupNotify=true
+DBusActivatable=false

@@ -1,0 +1,31 @@
+load("@rules_apple//apple:macos.bzl", "macos_application")
+load("@rules_apple//apple:versioning.bzl", "apple_bundle_version")
+load("@rules_swift//swift:swift_library.bzl", "swift_library")
+load("//build:app.bzl", "APP_ID", "APP_NAME", "VERSION")
+load("//platforms/apple:defs.bzl", "REQUIRES_MACOS_HOST")
+
+swift_library(
+    name = "AppLib",
+    srcs = glob(["Sources/**/*.swift"]),
+    copts = ["-swift-version", "6"],
+    module_name = "MiracleApp",
+    target_compatible_with = REQUIRES_MACOS_HOST,
+)
+
+apple_bundle_version(
+    name = "version",
+    build_version = VERSION,
+    short_version_string = VERSION,
+    target_compatible_with = REQUIRES_MACOS_HOST,
+)
+
+macos_application(
+    name = "app",
+    bundle_id = APP_ID,
+    bundle_name = APP_NAME,
+    infoplists = ["Info.plist"],
+    minimum_os_version = "15.0",
+    target_compatible_with = REQUIRES_MACOS_HOST,
+    version = ":version",
+    deps = [":AppLib"],
+)

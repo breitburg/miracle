@@ -1,0 +1,19 @@
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
+
+# Pure Rust business logic. No FFI, no UI toolkit, no third-party deps.
+# Only the FFI facade and Rust-native shells may depend on it; everything
+# else goes through //ffi.
+rust_library(
+    name = "miracle_core",
+    srcs = glob(["src/**/*.rs"]),
+    crate_name = "miracle_core",
+    visibility = [
+        "//ffi:__pkg__",
+        "//platforms/linux/gnome:__pkg__",
+    ],
+)
+
+rust_test(
+    name = "miracle_core_test",
+    crate = ":miracle_core",
+)
