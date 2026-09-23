@@ -14,7 +14,7 @@ mod imp {
 
     use adw::subclass::prelude::*;
     use gtk::prelude::*;
-    use gtk::{gdk, glib};
+    use gtk::{gdk, gio, glib};
 
     use crate::app_model::AppModel;
     use crate::chat_view::ChatView;
