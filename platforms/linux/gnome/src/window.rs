@@ -1,4 +1,4 @@
-//! The main window: chats in the sidebar, next to its own core view.
+//! The main window: sessions in the sidebar, next to its own core view.
 
 use adw::prelude::*;
 use adw::subclass::prelude::*;
@@ -6,8 +6,8 @@ use gtk::{gio, glib};
 use miracle_core::Action;
 
 use crate::app_model::AppModel;
-use crate::chat_window;
 use crate::period;
+use crate::session_window;
 
 mod imp {
     use std::cell::{Cell, OnceCell, RefCell};
@@ -26,10 +26,10 @@ mod imp {
         /// The model every window shares.
         #[property(get, construct_only)]
         pub(super) model: OnceCell<AppModel>,
-        /// The chat of each sidebar item, in sidebar order.
+        /// The session of each sidebar item, in sidebar order.
         pub(super) items: RefCell<Vec<(adw::SidebarItem, u64)>>,
-        /// The chat whose context menu is open.
-        pub(super) menu_chat_id: Cell<Option<u64>>,
+        /// The session whose context menu is open.
+        pub(super) menu_session_id: Cell<Option<u64>>,
         #[template_child]
         pub(super) split_view: TemplateChild<adw::OverlaySplitView>,
         #[template_child]
@@ -49,16 +49,16 @@ mod imp {
             ChatView::ensure_type();
             klass.bind_template();
 
-            klass.install_action("chat.new", None, |window, _, _| {
-                window.model().send(super::Action::ShowChat {
+            klass.install_action("session.new", None, |window, _, _| {
+                window.model().send(super::Action::ShowSession {
                     view_id: window.imp().chat_view.view_id(),
-                    chat_id: None,
+                    session_id: None,
                 });
             });
-            klass.add_binding_action(gdk::Key::n, gdk::ModifierType::CONTROL_MASK, "chat.new");
-            klass.install_action("chat.open-in-new-window", None, |window, _, _| {
-                if let Some(chat_id) = window.imp().menu_chat_id.get() {
-                    window.open_in_new_window(chat_id);
+            klass.add_binding_action(gdk::Key::n, gdk::ModifierType::CONTROL_MASK, "session.new");
+            klass.install_action("session.open-in-new-window", None, |window, _, _| {
+                if let Some(session_id) = window.imp().menu_session_id.get() {
+                    window.open_in_new_window(session_id);
                 }
             });
         }
@@ -76,8 +76,8 @@ mod imp {
             let model = window.model();
 
             // The main window's view lives as long as the app, on the
-            // newest chat.
-            let view_id = model.open_view(model.chats().first().map(|chat| chat.id));
+            // newest session.
+            let view_id = model.open_view(model.sessions().first().map(|session| session.id));
             self.chat_view.bind(&model, view_id);
             window.connect_close_request(glib::clone!(
                 #[weak]
@@ -90,7 +90,7 @@ mod imp {
                 }
             ));
 
-            model.connect_chats_changed(glib::clone!(
+            model.connect_sessions_changed(glib::clone!(
                 #[weak]
                 window,
                 move |_| window.render_sidebar()
@@ -98,7 +98,7 @@ mod imp {
             model.connect_views_changed(glib::clone!(
                 #[weak]
                 window,
-                move |_| window.select_shown_chat()
+                move |_| window.select_shown_session()
             ));
 
             self.sidebar.connect_activated(glib::clone!(
@@ -106,10 +106,13 @@ mod imp {
                 window,
                 move |_, index| window.activate_sidebar_item(index)
             ));
-            // Right-click on a chat: "Open in New Window". The menu is shared
+            // Right-click on a session: "Open in New Window". The menu is shared
             // by all items; `setup-menu` says which item it is for.
             let menu = gio::Menu::new();
-            menu.append(Some("Open in New Window"), Some("chat.open-in-new-window"));
+            menu.append(
+                Some("Open in New Window"),
+                Some("session.open-in-new-window"),
+            );
             self.sidebar.set_property("menu-model", &menu);
             self.sidebar.connect_closure(
                 "setup-menu",
@@ -118,8 +121,8 @@ mod imp {
                     #[weak]
                     window,
                     move |_: &adw::Sidebar, item: Option<&adw::SidebarItem>| {
-                        let chat_id = item.and_then(|item| window.chat_id_of(item));
-                        window.imp().menu_chat_id.set(chat_id);
+                        let session_id = item.and_then(|item| window.session_id_of(item));
+                        window.imp().menu_session_id.set(session_id);
                     }
                 ),
             );
@@ -154,65 +157,65 @@ impl Window {
         let imp = self.imp();
         imp.sidebar.remove_all();
         let mut items = Vec::new();
-        for chat_section in self.model().sections() {
+        for session_section in self.model().sections() {
             let section = adw::SidebarSection::new();
-            section.set_title(Some(&period::title(chat_section.period)));
+            section.set_title(Some(&period::title(session_section.period)));
             imp.sidebar.append(section.clone());
-            for chat in chat_section.chats {
-                let item = adw::SidebarItem::new(&chat.title);
+            for session in session_section.sessions {
+                let item = adw::SidebarItem::new(&session.title);
                 section.append(item.clone());
-                items.push((item, chat.id));
+                items.push((item, session.id));
             }
         }
         imp.items.replace(items);
-        self.select_shown_chat();
+        self.select_shown_session();
     }
 
-    /// Selects the chat the main view shows; nothing for a new chat.
-    fn select_shown_chat(&self) {
+    /// Selects the session the main view shows; nothing for a new session.
+    fn select_shown_session(&self) {
         let imp = self.imp();
         let shown = self
             .model()
             .view(imp.chat_view.view_id())
-            .and_then(|view| view.chat_id);
+            .and_then(|view| view.session_id);
         let position = imp
             .items
             .borrow()
             .iter()
-            .position(|(_, chat_id)| Some(*chat_id) == shown);
+            .position(|(_, session_id)| Some(*session_id) == shown);
         imp.sidebar
             .set_selected(position.map_or(gtk::INVALID_LIST_POSITION, |position| position as u32));
     }
 
-    fn chat_id_of(&self, item: &adw::SidebarItem) -> Option<u64> {
+    fn session_id_of(&self, item: &adw::SidebarItem) -> Option<u64> {
         self.imp()
             .items
             .borrow()
             .iter()
             .find(|(candidate, _)| candidate == item)
-            .map(|(_, chat_id)| *chat_id)
+            .map(|(_, session_id)| *session_id)
     }
 
     fn activate_sidebar_item(&self, index: u32) {
         let imp = self.imp();
-        let chat_id = imp.items.borrow().get(index as usize).map(|(_, id)| *id);
-        if let Some(chat_id) = chat_id {
-            self.model().send(Action::ShowChat {
+        let session_id = imp.items.borrow().get(index as usize).map(|(_, id)| *id);
+        if let Some(session_id) = session_id {
+            self.model().send(Action::ShowSession {
                 view_id: imp.chat_view.view_id(),
-                chat_id: Some(chat_id),
+                session_id: Some(session_id),
             });
         }
-        // A collapsed sidebar covers the chat, so close it after a choice.
+        // A collapsed sidebar covers the session, so close it after a choice.
         if imp.split_view.is_collapsed() {
             imp.split_view.set_show_sidebar(false);
         }
     }
 
-    fn open_in_new_window(&self, chat_id: u64) {
+    fn open_in_new_window(&self, session_id: u64) {
         let app = self
             .application()
             .and_downcast::<adw::Application>()
             .expect("the window belongs to the app");
-        chat_window::open(&app, &self.model(), chat_id);
+        session_window::open(&app, &self.model(), session_id);
     }
 }

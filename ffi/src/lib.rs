@@ -8,7 +8,8 @@ use std::sync::Arc;
 use std::time::SystemTime;
 
 use miracle_core::{
-    Action, Chat, ChatSection, ChatSummary, ChatViewState, Message, Period, Role, State,
+    Action, Chat, Message, Period, Role, Session, SessionSection, SessionSummary, SessionViewState,
+    State,
 };
 
 uniffi::setup_scaffolding!();
@@ -27,32 +28,50 @@ pub enum Role {
 
 #[uniffi::remote(Record)]
 pub struct Chat {
-    pub id: u64,
-    pub title: String,
-    pub updated_at: SystemTime,
     pub messages: Vec<Message>,
 }
 
 #[uniffi::remote(Record)]
-pub struct ChatViewState {
+pub struct Session {
     pub id: u64,
-    pub chat_id: Option<u64>,
+    pub title: String,
+    pub updated_at: SystemTime,
+    pub chat: Chat,
+}
+
+#[uniffi::remote(Record)]
+pub struct SessionViewState {
+    pub id: u64,
+    pub session_id: Option<u64>,
     pub draft: String,
 }
 
 #[uniffi::remote(Record)]
 pub struct State {
-    pub chats: Vec<Chat>,
-    pub views: Vec<ChatViewState>,
+    pub sessions: Vec<Session>,
+    pub views: Vec<SessionViewState>,
 }
 
 #[uniffi::remote(Enum)]
 pub enum Action {
-    OpenView { chat_id: Option<u64> },
-    CloseView { view_id: u64 },
-    ShowChat { view_id: u64, chat_id: Option<u64> },
-    EditDraft { view_id: u64, text: String },
-    SendMessage { view_id: u64, sent_at: SystemTime },
+    OpenView {
+        session_id: Option<u64>,
+    },
+    CloseView {
+        view_id: u64,
+    },
+    ShowSession {
+        view_id: u64,
+        session_id: Option<u64>,
+    },
+    EditDraft {
+        view_id: u64,
+        text: String,
+    },
+    SendMessage {
+        view_id: u64,
+        sent_at: SystemTime,
+    },
 }
 
 #[uniffi::remote(Enum)]
@@ -66,13 +85,13 @@ pub enum Period {
 }
 
 #[uniffi::remote(Record)]
-pub struct ChatSection {
+pub struct SessionSection {
     pub period: Period,
-    pub chats: Vec<ChatSummary>,
+    pub sessions: Vec<SessionSummary>,
 }
 
 #[uniffi::remote(Record)]
-pub struct ChatSummary {
+pub struct SessionSummary {
     pub id: u64,
     pub title: String,
 }
@@ -98,13 +117,14 @@ impl Store {
         self.0.dispatch(action)
     }
 
-    /// Opens a view on the chat (a new chat for `None`) and returns its id.
-    pub fn open_view(&self, chat_id: Option<u64>) -> u64 {
-        self.0.open_view(chat_id)
+    /// Opens a view on the session (a new session for `None`) and returns
+    /// its id.
+    pub fn open_view(&self, session_id: Option<u64>) -> u64 {
+        self.0.open_view(session_id)
     }
 
-    /// The chats grouped for the sidebar, as seen at `now`.
-    pub fn chat_sections(&self, now: SystemTime) -> Vec<ChatSection> {
-        self.0.chat_sections(now)
+    /// The sessions grouped for the sidebar, as seen at `now`.
+    pub fn session_sections(&self, now: SystemTime) -> Vec<SessionSection> {
+        self.0.session_sections(now)
     }
 }

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The main window: chats in the sidebar, next to its view.
+/// The main window: sessions in the sidebar, next to its view.
 struct MainWindow: View {
     @Environment(AppModel.self) private var model
 
@@ -11,27 +11,28 @@ struct MainWindow: View {
         } detail: {
             ChatView(viewId: model.mainViewId)
                 .toolbar {
-                    // In the chat's toolbar, so it stays in reach when the
+                    // In the session's toolbar, so it stays in reach when the
                     // sidebar is hidden.
                     ToolbarItem(placement: .primaryAction) {
-                        Button("New Chat", systemImage: "square.and.pencil", action: newChat)
+                        Button("New Chat", systemImage: "square.and.pencil", action: newSession)
                             .help("New Chat")
                     }
                 }
         }
-        .focusedSceneValue(\.newChat, newChat)
+        .focusedSceneValue(\.newSession, newSession)
     }
 
-    private func newChat() {
-        model.send(.showChat(viewId: model.mainViewId, chatId: nil))
+    private func newSession() {
+        model.send(.showSession(viewId: model.mainViewId, sessionId: nil))
     }
 
-    /// The chat the main view shows; nothing is selected for a new chat.
+    /// The session the main view shows; nothing is selected for a new
+    /// session.
     private var selection: Binding<UInt64?> {
         Binding {
-            model.view(model.mainViewId)?.chatId
+            model.view(model.mainViewId)?.sessionId
         } set: { id in
-            if let id { model.send(.showChat(viewId: model.mainViewId, chatId: id)) }
+            if let id { model.send(.showSession(viewId: model.mainViewId, sessionId: id)) }
         }
     }
 }

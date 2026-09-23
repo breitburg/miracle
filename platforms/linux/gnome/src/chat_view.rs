@@ -1,5 +1,5 @@
-//! One core view: the shown chat's messages, or a hint for a new chat,
-//! above the composer. Both the main window and chat windows show one.
+//! One core view: the shown session's chat, or a hint for a new session,
+//! above the composer. Both the main window and session windows show one.
 
 use std::time::SystemTime;
 
@@ -76,16 +76,17 @@ mod imp {
     #[template(resource = "/dev/miracle/Miracle/ui/chat_view.ui")]
     #[properties(wrapper_type = super::ChatView)]
     pub struct ChatView {
-        /// The shown chat's [`MessageObject`]s, oldest first.
+        /// The shown session's [`MessageObject`]s, oldest first.
         #[property(get)]
         pub(super) messages: RefCell<Option<gio::ListStore>>,
-        /// For the window's header: the chat's title, or "New Chat".
+        /// For the window's header: the session's title, or "New Chat".
         #[property(get)]
         pub(super) title: RefCell<String>,
         pub(super) model: OnceCell<AppModel>,
         pub(super) view_id: Cell<u64>,
-        /// The chat that `messages` holds, to tell a switch from new messages.
-        pub(super) shown_chat_id: Cell<Option<u64>>,
+        /// The session that `messages` holds, to tell a switch from new
+        /// messages.
+        pub(super) shown_session_id: Cell<Option<u64>>,
         pub(super) handlers: RefCell<Vec<glib::SignalHandlerId>>,
         #[template_child]
         pub(super) toast_overlay: TemplateChild<adw::ToastOverlay>,
@@ -215,8 +216,10 @@ mod imp {
                 #[weak]
                 view,
                 move |prompt| {
-                    let text_height = |text: &str| prompt.create_pango_layout(Some(text)).pixel_size().1;
-                    let space = super::SEND_BUTTON_SIZE + 2 * super::COMPOSER_INSET - text_height("");
+                    let text_height =
+                        |text: &str| prompt.create_pango_layout(Some(text)).pixel_size().1;
+                    let space =
+                        super::SEND_BUTTON_SIZE + 2 * super::COMPOSER_INSET - text_height("");
                     prompt.set_top_margin(space / 2);
                     prompt.set_bottom_margin(space - space / 2);
                     let lines = text_height(&"\n".repeat(super::COMPOSER_MAX_LINES - 1));
@@ -314,7 +317,7 @@ impl ChatView {
             move |_: &AppModel| view.render()
         );
         imp.handlers.replace(vec![
-            model.connect_chats_changed(render.clone()),
+            model.connect_sessions_changed(render.clone()),
             model.connect_views_changed(render),
         ]);
         self.render();
@@ -324,7 +327,7 @@ impl ChatView {
         self.imp().view_id.get()
     }
 
-    fn state(&self) -> Option<miracle_core::ChatViewState> {
+    fn state(&self) -> Option<miracle_core::SessionViewState> {
         self.imp().model.get()?.view(self.view_id())
     }
 
@@ -335,11 +338,13 @@ impl ChatView {
         let (Some(model), Some(state)) = (imp.model.get(), self.state()) else {
             return;
         };
-        let chat = state.chat_id.and_then(|id| model.chat(id));
+        let session = state.session_id.and_then(|id| model.session(id));
         let messages = self.messages().expect("created in constructed");
 
-        let switched = imp.shown_chat_id.get() != state.chat_id;
-        let chat_messages = chat.as_ref().map_or(&[][..], |chat| &chat.messages[..]);
+        let switched = imp.shown_session_id.get() != state.session_id;
+        let chat_messages = session
+            .as_ref()
+            .map_or(&[][..], |session| &session.chat.messages[..]);
         let shown = messages.n_items() as usize;
         if switched || chat_messages.len() < shown {
             let objects: Vec<_> = chat_messages.iter().map(MessageObject::new).collect();
@@ -353,17 +358,17 @@ impl ChatView {
             messages.extend_from_slice(&objects);
         }
         if switched || chat_messages.len() != shown {
-            imp.shown_chat_id.set(state.chat_id);
+            imp.shown_session_id.set(state.session_id);
             self.scroll_to_last_message();
         }
 
-        imp.stack.set_visible_child_name(if chat.is_some() {
+        imp.stack.set_visible_child_name(if session.is_some() {
             "messages"
         } else {
             "new-chat"
         });
 
-        let title = chat.map_or_else(|| "New Chat".to_owned(), |chat| chat.title);
+        let title = session.map_or_else(|| "New Chat".to_owned(), |session| session.title);
         if *imp.title.borrow() != title {
             imp.title.replace(title);
             self.notify_title();

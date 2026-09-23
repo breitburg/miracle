@@ -1,9 +1,9 @@
 import AppKit
 import SwiftUI
 
-/// A window with one chat and nothing else, opened from the sidebar. It owns
-/// its core view and closes it with the window.
-struct ChatWindow: View {
+/// A window with one session and nothing else, opened from the sidebar. It
+/// owns its core view and closes it with the window.
+struct SessionWindow: View {
     @Environment(AppModel.self) private var model
     let viewId: UInt64?
     /// Keeps the window above the windows of other apps.

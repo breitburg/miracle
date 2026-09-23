@@ -4,9 +4,9 @@
 
 mod app_model;
 mod chat_view;
-mod chat_window;
 mod message_object;
 mod period;
+mod session_window;
 mod window;
 
 use adw::prelude::*;

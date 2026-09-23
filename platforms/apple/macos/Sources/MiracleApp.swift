@@ -20,7 +20,7 @@ struct MiracleApp: App {
 
         // "Open in New Window": one window per core view id.
         WindowGroup("Chat", for: UInt64.self) { $viewId in
-            ChatWindow(viewId: viewId)
+            SessionWindow(viewId: viewId)
                 .environment(model)
         }
         // Views live in memory, so there is nothing to restore after a

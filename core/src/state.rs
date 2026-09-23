@@ -1,10 +1,10 @@
-use crate::{Chat, ChatViewState};
+use crate::{Session, SessionViewState};
 
 /// Everything a shell needs to render. Plain data, cheap to clone.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct State {
-    /// Newest first, by [`Chat::updated_at`].
-    pub chats: Vec<Chat>,
+    /// Newest first, by [`Session::updated_at`].
+    pub sessions: Vec<Session>,
     /// One per open window, in the order they opened.
-    pub views: Vec<ChatViewState>,
+    pub views: Vec<SessionViewState>,
 }

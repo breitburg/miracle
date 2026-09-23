@@ -3,7 +3,7 @@
 //!
 //! Holds no business rules: it sends actions to the core, keeps the
 //! resulting state and tells widgets what changed, through the
-//! `chats-changed` and `views-changed` signals.
+//! `sessions-changed` and `views-changed` signals.
 
 use std::time::SystemTime;
 
@@ -11,7 +11,7 @@ use gtk::glib;
 use gtk::glib::closure_local;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
-use miracle_core::{Action, Chat, ChatSection, ChatViewState, State};
+use miracle_core::{Action, Session, SessionSection, SessionViewState, State};
 
 mod imp {
     use std::cell::RefCell;
@@ -40,9 +40,9 @@ mod imp {
             static SIGNALS: OnceLock<Vec<Signal>> = OnceLock::new();
             SIGNALS.get_or_init(|| {
                 vec![
-                    // The chats or their order changed.
-                    Signal::builder("chats-changed").build(),
-                    // A view opened, closed, or changed its chat or draft.
+                    // The sessions or their order changed.
+                    Signal::builder("sessions-changed").build(),
+                    // A view opened, closed, or changed its session or draft.
                     Signal::builder("views-changed").build(),
                 ]
             })
@@ -71,37 +71,41 @@ impl AppModel {
         self.apply(state);
     }
 
-    /// Opens a view on the chat (a new chat for `None`) and returns its id,
-    /// for the window that shows it.
-    pub fn open_view(&self, chat_id: Option<u64>) -> u64 {
-        let id = self.imp().store.open_view(chat_id);
+    /// Opens a view on the session (a new session for `None`) and returns
+    /// its id, for the window that shows it.
+    pub fn open_view(&self, session_id: Option<u64>) -> u64 {
+        let id = self.imp().store.open_view(session_id);
         self.apply(self.imp().store.state());
         id
     }
 
     /// Newest first.
-    pub fn chats(&self) -> Vec<Chat> {
-        self.imp().state.borrow().chats.clone()
+    pub fn sessions(&self) -> Vec<Session> {
+        self.imp().state.borrow().sessions.clone()
     }
 
-    pub fn chat(&self, id: u64) -> Option<Chat> {
+    pub fn session(&self, id: u64) -> Option<Session> {
         let state = self.imp().state.borrow();
-        state.chats.iter().find(|chat| chat.id == id).cloned()
+        state
+            .sessions
+            .iter()
+            .find(|session| session.id == id)
+            .cloned()
     }
 
-    pub fn view(&self, id: u64) -> Option<ChatViewState> {
+    pub fn view(&self, id: u64) -> Option<SessionViewState> {
         let state = self.imp().state.borrow();
         state.views.iter().find(|view| view.id == id).cloned()
     }
 
-    /// The chats grouped for the sidebar, as of now.
-    pub fn sections(&self) -> Vec<ChatSection> {
-        self.imp().store.chat_sections(SystemTime::now())
+    /// The sessions grouped for the sidebar, as of now.
+    pub fn sections(&self) -> Vec<SessionSection> {
+        self.imp().store.session_sections(SystemTime::now())
     }
 
-    pub fn connect_chats_changed<F: Fn(&Self) + 'static>(&self, f: F) -> glib::SignalHandlerId {
+    pub fn connect_sessions_changed<F: Fn(&Self) + 'static>(&self, f: F) -> glib::SignalHandlerId {
         self.connect_closure(
-            "chats-changed",
+            "sessions-changed",
             false,
             closure_local!(move |model: &AppModel| f(model)),
         )
@@ -119,12 +123,12 @@ impl AppModel {
     /// so handlers can read the model.
     fn apply(&self, state: State) {
         let old = self.imp().state.replace(state);
-        let (chats_changed, views_changed) = {
+        let (sessions_changed, views_changed) = {
             let new = self.imp().state.borrow();
-            (old.chats != new.chats, old.views != new.views)
+            (old.sessions != new.sessions, old.views != new.views)
         };
-        if chats_changed {
-            self.emit_by_name::<()>("chats-changed", &[]);
+        if sessions_changed {
+            self.emit_by_name::<()>("sessions-changed", &[]);
         }
         if views_changed {
             self.emit_by_name::<()>("views-changed", &[]);

@@ -1,22 +1,22 @@
 import SwiftUI
 
 extension FocusedValues {
-    /// Opens a new chat in the focused window, if it can.
-    @Entry var newChat: (() -> Void)?
+    /// Opens a new session in the focused window, if it can.
+    @Entry var newSession: (() -> Void)?
 }
 
 /// Menu bar commands: New Chat replaces New Window. Only the main window
-/// offers it; chat windows each keep their one chat.
+/// offers it; session windows each keep their one session.
 struct MiracleCommands: Commands {
-    @FocusedValue(\.newChat) private var newChat
+    @FocusedValue(\.newSession) private var newSession
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
             Button("New Chat") {
-                newChat?()
+                newSession?()
             }
             .keyboardShortcut("n")
-            .disabled(newChat == nil)
+            .disabled(newSession == nil)
         }
         SidebarCommands()
     }

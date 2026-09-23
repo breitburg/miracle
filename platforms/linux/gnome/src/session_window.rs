@@ -1,4 +1,4 @@
-//! A window with one chat and nothing else, opened from the sidebar. It
+//! A window with one session and nothing else, opened from the sidebar. It
 //! owns its core view and closes it with the window.
 
 use adw::prelude::*;
@@ -8,9 +8,9 @@ use miracle_core::Action;
 use crate::app_model::AppModel;
 use crate::chat_view::ChatView;
 
-pub fn open(app: &adw::Application, model: &AppModel, chat_id: u64) {
+pub fn open(app: &adw::Application, model: &AppModel, session_id: u64) {
     let chat_view = ChatView::default();
-    chat_view.bind(model, model.open_view(Some(chat_id)));
+    chat_view.bind(model, model.open_view(Some(session_id)));
 
     let title = adw::WindowTitle::new("", "");
     chat_view

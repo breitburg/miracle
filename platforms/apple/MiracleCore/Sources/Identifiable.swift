@@ -1,8 +1,8 @@
-extension Chat: Identifiable {}
+extension Session: Identifiable {}
 
-extension ChatSummary: Identifiable {}
+extension SessionSummary: Identifiable {}
 
-extension ChatSection: Identifiable {
-    /// Each period appears once, as chats are grouped newest first.
+extension SessionSection: Identifiable {
+    /// Each period appears once, as sessions are grouped newest first.
     public var id: Period { period }
 }

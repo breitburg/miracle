@@ -4,9 +4,9 @@ use jiff::Timestamp;
 use jiff::civil::Date;
 use jiff::tz::TimeZone;
 
-use crate::Chat;
+use crate::Session;
 
-/// When the chats of a sidebar section were last updated. Shells turn it
+/// When the sessions of a sidebar section were last updated. Shells turn it
 /// into a localized title.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Period {
@@ -26,46 +26,46 @@ pub enum Period {
     },
 }
 
-/// Consecutive chats updated in the same [`Period`].
+/// Consecutive sessions updated in the same [`Period`].
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ChatSection {
+pub struct SessionSection {
     pub period: Period,
     /// Newest first.
-    pub chats: Vec<ChatSummary>,
+    pub sessions: Vec<SessionSummary>,
 }
 
-/// What the sidebar shows of a chat.
+/// What the sidebar shows of a session.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ChatSummary {
+pub struct SessionSummary {
     pub id: u64,
     pub title: String,
 }
 
-impl From<&Chat> for ChatSummary {
-    fn from(chat: &Chat) -> Self {
+impl From<&Session> for SessionSummary {
+    fn from(session: &Session) -> Self {
         Self {
-            id: chat.id,
-            title: chat.title.clone(),
+            id: session.id,
+            title: session.title.clone(),
         }
     }
 }
 
-/// Groups `chats` (newest first) by the local calendar day they were last
-/// updated, as seen at `now`.
-pub(crate) fn chat_sections(chats: &[Chat], now: SystemTime) -> Vec<ChatSection> {
-    sections_in(chats, now, &TimeZone::system())
+/// Groups `sessions` (newest first) by the local calendar day they were
+/// last updated, as seen at `now`.
+pub(crate) fn session_sections(sessions: &[Session], now: SystemTime) -> Vec<SessionSection> {
+    sections_in(sessions, now, &TimeZone::system())
 }
 
-fn sections_in(chats: &[Chat], now: SystemTime, time_zone: &TimeZone) -> Vec<ChatSection> {
+fn sections_in(sessions: &[Session], now: SystemTime, time_zone: &TimeZone) -> Vec<SessionSection> {
     let today = local_date(now, time_zone);
-    let mut sections: Vec<ChatSection> = Vec::new();
-    for chat in chats {
-        let period = period(local_date(chat.updated_at, time_zone), today);
+    let mut sections: Vec<SessionSection> = Vec::new();
+    for session in sessions {
+        let period = period(local_date(session.updated_at, time_zone), today);
         match sections.last_mut() {
-            Some(section) if section.period == period => section.chats.push(chat.into()),
-            _ => sections.push(ChatSection {
+            Some(section) if section.period == period => section.sessions.push(session.into()),
+            _ => sections.push(SessionSection {
                 period,
-                chats: vec![chat.into()],
+                sessions: vec![session.into()],
             }),
         }
     }
@@ -100,6 +100,7 @@ mod tests {
     use jiff::civil::date;
 
     use super::*;
+    use crate::Chat;
 
     fn at(date: Date, hour: i8, time_zone: &TimeZone) -> SystemTime {
         date.at(hour, 0, 0, 0)
@@ -109,12 +110,12 @@ mod tests {
             .into()
     }
 
-    fn chat(id: u64, updated_at: SystemTime) -> Chat {
-        Chat {
+    fn session(id: u64, updated_at: SystemTime) -> Session {
+        Session {
             id,
-            title: format!("Chat {id}"),
+            title: format!("Session {id}"),
             updated_at,
-            messages: Vec::new(),
+            chat: Chat::default(),
         }
     }
 
@@ -139,19 +140,19 @@ mod tests {
     }
 
     #[test]
-    fn sections_group_consecutive_chats_in_local_time() {
+    fn sections_group_consecutive_sessions_in_local_time() {
         let time_zone = TimeZone::get("Europe/Amsterdam").expect("the zone exists");
         // Clocks go back on 25 October 2026: a 25-hour day.
         let now = at(date(2026, 10, 26), 0, &time_zone);
-        let chats = [
-            chat(1, at(date(2026, 10, 26), 0, &time_zone)),
-            chat(2, at(date(2026, 10, 25), 0, &time_zone)),
-            chat(3, at(date(2026, 10, 24), 23, &time_zone)),
+        let sessions = [
+            session(1, at(date(2026, 10, 26), 0, &time_zone)),
+            session(2, at(date(2026, 10, 25), 0, &time_zone)),
+            session(3, at(date(2026, 10, 24), 23, &time_zone)),
         ];
-        let sections = sections_in(&chats, now, &time_zone);
+        let sections = sections_in(&sessions, now, &time_zone);
         let periods: Vec<_> = sections
             .iter()
-            .map(|section| (section.period, section.chats.len()))
+            .map(|section| (section.period, section.sessions.len()))
             .collect();
         assert_eq!(
             periods,

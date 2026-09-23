@@ -1,7 +1,7 @@
 import MiracleCore
 import SwiftUI
 
-/// The chats with messages, grouped by date, newest first.
+/// The sessions, grouped by date, newest first.
 struct SidebarView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.openWindow) private var openWindow
@@ -11,13 +11,13 @@ struct SidebarView: View {
         List(selection: $selection) {
             ForEach(model.sections) { section in
                 Section(section.period.title) {
-                    ForEach(section.chats) { chat in
-                        Text(chat.title)
+                    ForEach(section.sessions) { session in
+                        Text(session.title)
                             .lineLimit(1)
-                            .tag(chat.id)
+                            .tag(session.id)
                             .contextMenu {
                                 Button("Open in New Window", systemImage: "macwindow.badge.plus") {
-                                    openWindow(value: model.openView(chatId: chat.id))
+                                    openWindow(value: model.openView(sessionId: session.id))
                                 }
                             }
                     }

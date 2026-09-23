@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The new chat has no messages yet, so it shows a hint instead.
+/// The new session has no messages yet, so it shows a hint instead.
 struct EmptyChatView: View {
     var body: some View {
         ContentUnavailableView {
