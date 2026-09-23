@@ -60,6 +60,15 @@ template $MiracleWindow: Adw.ApplicationWindow {
             }
           }
 
+          // Here rather than in the sidebar, so it stays in reach when the
+          // sidebar is collapsed.
+          [end]
+          Button {
+            icon-name: "chat-message-new-symbolic";
+            tooltip-text: _("New Chat");
+            action-name: "chat.new";
+          }
+
           title-widget: Adw.WindowTitle {
             title: bind $chat_title(template.model as <$MiracleAppModel>.selected-chat) as <string>;
           };
@@ -99,7 +108,7 @@ template $MiracleWindow: Adw.ApplicationWindow {
                         // hover area covers the whole row.
                         child: Box {
                           orientation: vertical;
-                          spacing: 4;
+                          spacing: 12;
                           // User messages are bubbles at the end; assistant
                           // messages are plain text.
                           Stack {
@@ -135,6 +144,10 @@ template $MiracleWindow: Adw.ApplicationWindow {
                                 wrap: true;
                                 wrap-mode: word_char;
                                 label: bind template.item as <$MiracleMessageObject>.content;
+
+                                styles [
+                                  "assistant-text",
+                                ]
                               };
                             }
                           }

@@ -3,9 +3,9 @@
 //! Rust shells link the core directly, with no FFI layer in between.
 
 mod app_model;
-mod chat_group;
 mod chat_object;
 mod message_object;
+mod period;
 mod window;
 
 use adw::prelude::*;

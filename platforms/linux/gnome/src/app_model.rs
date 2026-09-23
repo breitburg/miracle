@@ -4,10 +4,12 @@
 //! Holds no business rules: it sends actions to the core and republishes the
 //! resulting state as GObject properties, so widgets can bind to them.
 
+use std::time::SystemTime;
+
 use gtk::glib;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
-use miracle_core::{Action, State};
+use miracle_core::{Action, ChatSection, State};
 
 use crate::chat_object::ChatObject;
 
@@ -29,6 +31,9 @@ mod imp {
         /// The open chat, one of `chats`.
         #[property(get, nullable)]
         pub(super) selected_chat: RefCell<Option<ChatObject>>,
+        /// The unsent text in the composer.
+        #[property(get)]
+        pub(super) draft: RefCell<String>,
         /// The core chats that `chats` shows, to skip rebuilds.
         pub(super) rendered_chats: RefCell<Vec<miracle_core::Chat>>,
         pub(super) store: miracle_core::Store,
@@ -39,6 +44,7 @@ mod imp {
             Self {
                 chats: gio::ListStore::new::<ChatObject>(),
                 selected_chat: RefCell::default(),
+                draft: RefCell::default(),
                 rendered_chats: RefCell::default(),
                 store: miracle_core::Store::new(),
             }
@@ -76,6 +82,11 @@ impl AppModel {
         self.render(&state);
     }
 
+    /// `chats` grouped for the sidebar, as of now.
+    pub fn sections(&self) -> Vec<ChatSection> {
+        self.imp().store.chat_sections(SystemTime::now())
+    }
+
     fn render(&self, state: &State) {
         let imp = self.imp();
         let chats_changed = *imp.rendered_chats.borrow() != state.chats;
@@ -101,6 +112,11 @@ impl AppModel {
         if chats_changed {
             imp.rendered_chats.replace(state.chats.clone());
             imp.chats.splice(0, imp.chats.n_items(), &objects);
+        }
+
+        if *imp.draft.borrow() != state.draft {
+            imp.draft.replace(state.draft.clone());
+            self.notify_draft();
         }
     }
 }

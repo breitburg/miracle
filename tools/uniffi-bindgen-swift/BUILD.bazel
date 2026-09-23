@@ -1,0 +1,9 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary")
+
+# Generates the Swift API, C header and modulemap for //ffi (library mode).
+rust_binary(
+    name = "uniffi-bindgen-swift",
+    srcs = ["src/main.rs"],
+    visibility = ["//platforms/apple:__subpackages__"],
+    deps = ["@bindgen_crates//:uniffi"],
+)

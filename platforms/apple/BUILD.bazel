@@ -1,0 +1,7 @@
+# The app icon, an Icon Composer bundle drawn after the GNOME one: a white
+# plus on the purple gradient.
+filegroup(
+    name = "app_icon",
+    srcs = glob(["Resources/AppIcon.icon/**"]),
+    visibility = ["//platforms/apple/macos:__pkg__"],
+)

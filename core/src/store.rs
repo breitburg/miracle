@@ -1,7 +1,9 @@
+use std::mem;
 use std::sync::{Mutex, PoisonError};
 use std::time::{Duration, SystemTime};
 
-use crate::{Action, Chat, Message, Role, State, reduce};
+use crate::section::chat_sections;
+use crate::{Action, Chat, ChatSection, Message, Role, State, reduce};
 
 /// Owns the current [`State`] and applies [`Action`]s to it.
 ///
@@ -86,6 +88,7 @@ impl Store {
             state: Mutex::new(State {
                 chats,
                 selected_chat_id,
+                ..Default::default()
             }),
         }
     }
@@ -101,8 +104,15 @@ impl Store {
     /// Applies `action` and returns the new state.
     pub fn dispatch(&self, action: Action) -> State {
         let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
-        *state = reduce(&state, action);
+        *state = reduce(mem::take(&mut state), action);
         state.clone()
+    }
+
+    /// The chats grouped for the sidebar, by the local calendar day they
+    /// were last updated, as seen at `now`.
+    pub fn chat_sections(&self, now: SystemTime) -> Vec<ChatSection> {
+        let state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
+        chat_sections(&state.chats, now)
     }
 }
 

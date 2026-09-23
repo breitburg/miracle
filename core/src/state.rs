@@ -8,4 +8,6 @@ pub struct State {
     /// The [`Chat::id`] of the chat that is open, or `None` while the empty
     /// new chat is open.
     pub selected_chat_id: Option<u64>,
+    /// The unsent text in the composer.
+    pub draft: String,
 }

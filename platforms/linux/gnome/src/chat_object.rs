@@ -1,7 +1,5 @@
 //! GObject wrapper for a core `Chat`, so it can live in a `gio::ListModel`.
 
-use std::time::{SystemTime, UNIX_EPOCH};
-
 use gtk::{gio, glib};
 
 use crate::message_object::MessageObject;
@@ -20,8 +18,6 @@ mod imp {
         id: OnceCell<u64>,
         #[property(get, construct_only)]
         title: OnceCell<String>,
-        #[property(get, construct_only)]
-        updated_at: OnceCell<glib::DateTime>,
         /// [`super::MessageObject`]s, oldest first.
         #[property(get, construct_only)]
         messages: OnceCell<gio::ListStore>,
@@ -49,15 +45,8 @@ impl ChatObject {
         glib::Object::builder()
             .property("id", chat.id)
             .property("title", &chat.title)
-            .property("updated-at", local_date_time(chat.updated_at))
             .property("messages", messages)
             .build()
     }
 }
 
-fn local_date_time(time: SystemTime) -> glib::DateTime {
-    let seconds = time
-        .duration_since(UNIX_EPOCH)
-        .map_or(0, |elapsed| elapsed.as_secs() as i64);
-    glib::DateTime::from_unix_local(seconds).expect("timestamp is in the range of GDateTime")
-}

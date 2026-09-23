@@ -7,7 +7,7 @@
 use std::sync::Arc;
 use std::time::SystemTime;
 
-use miracle_core::{Action, Chat, Message, Role, State};
+use miracle_core::{Action, Chat, ChatSection, ChatSummary, Message, Period, Role, State};
 
 uniffi::setup_scaffolding!();
 
@@ -35,6 +35,7 @@ pub struct Chat {
 pub struct State {
     pub chats: Vec<Chat>,
     pub selected_chat_id: Option<u64>,
+    pub draft: String,
 }
 
 #[uniffi::remote(Enum)]
@@ -43,10 +44,34 @@ pub enum Action {
     SelectChat {
         id: u64,
     },
+    EditDraft {
+        text: String,
+    },
     SendMessage {
-        content: String,
         sent_at: SystemTime,
     },
+}
+
+#[uniffi::remote(Enum)]
+pub enum Period {
+    Today,
+    Yesterday,
+    PreviousSevenDays,
+    PreviousThirtyDays,
+    Month { month: u8 },
+    Year { year: i16 },
+}
+
+#[uniffi::remote(Record)]
+pub struct ChatSection {
+    pub period: Period,
+    pub chats: Vec<ChatSummary>,
+}
+
+#[uniffi::remote(Record)]
+pub struct ChatSummary {
+    pub id: u64,
+    pub title: String,
 }
 
 /// Foreign handle to the core [`miracle_core::Store`].
@@ -68,5 +93,10 @@ impl Store {
     /// Applies `action` and returns the new state.
     pub fn dispatch(&self, action: Action) -> State {
         self.0.dispatch(action)
+    }
+
+    /// The chats grouped for the sidebar, as seen at `now`.
+    pub fn chat_sections(&self, now: SystemTime) -> Vec<ChatSection> {
+        self.0.chat_sections(now)
     }
 }

@@ -5,11 +5,8 @@ use adw::subclass::prelude::*;
 use gtk::{gio, glib};
 use miracle_core::Action;
 
-use crate::chat_group;
 use crate::chat_object::ChatObject;
-
-/// Sidebar index of the first chat: "New Chat" is at index 0.
-const FIRST_CHAT_INDEX: u32 = 1;
+use crate::period;
 
 /// Maximum width of the messages and of the composer row, in pixels.
 const CONTENT_MAX_WIDTH: i32 = 640;
@@ -22,13 +19,20 @@ const CONTENT_PADDING: i32 = 16;
 /// style.css reads it as `--content-vertical-padding`.
 const CONTENT_VERTICAL_PADDING: i32 = 12;
 
+/// Padding inside a user message's bubble, in pixels. style.css reads them
+/// as `--bubble-padding` and `--bubble-vertical-padding`.
+const BUBBLE_PADDING: i32 = 16;
+const BUBBLE_VERTICAL_PADDING: i32 = 12;
+
 /// Gives Rust layout constants to style.css as CSS variables, so both
 /// share one value.
 pub fn provide_css_variables(display: &gtk::gdk::Display) {
     let provider = gtk::CssProvider::new();
     provider.load_from_string(&format!(
         ":root {{ --content-padding: {CONTENT_PADDING}px; \
-         --content-vertical-padding: {CONTENT_VERTICAL_PADDING}px; }}"
+         --content-vertical-padding: {CONTENT_VERTICAL_PADDING}px; \
+         --bubble-padding: {BUBBLE_PADDING}px; \
+         --bubble-vertical-padding: {BUBBLE_VERTICAL_PADDING}px; }}"
     ));
     gtk::style_context_add_provider_for_display(
         display,
@@ -86,6 +90,10 @@ mod imp {
             klass.bind_template();
             klass.bind_template_callbacks();
 
+            klass.install_action("chat.new", None, |window, _, _| {
+                window.model().send(Action::OpenNewChat);
+            });
+            klass.add_binding_action(gdk::Key::n, gdk::ModifierType::CONTROL_MASK, "chat.new");
             klass.install_action("chat.send", None, |window, _, _| window.send_prompt());
             klass.install_action(
                 "message.copy",
@@ -207,6 +215,30 @@ mod imp {
                 window,
                 move |_| window.scroll_to_last_message()
             ));
+            // The core owns the draft: edits go to it, and its changes (such
+            // as clearing after a send) come back to the text view.
+            self.prompt.buffer().connect_changed(glib::clone!(
+                #[weak]
+                model,
+                move |buffer| {
+                    let text = super::buffer_text(buffer);
+                    if text != model.draft() {
+                        model.send(Action::EditDraft { text });
+                    }
+                }
+            ));
+            let prompt = self.prompt.get();
+            model.connect_draft_notify(glib::clone!(
+                #[weak]
+                prompt,
+                move |model| {
+                    let buffer = prompt.buffer();
+                    let draft = model.draft();
+                    if super::buffer_text(&buffer) != draft {
+                        buffer.set_text(&draft);
+                    }
+                }
+            ));
             // Enter sends and Shift+Enter makes a new line, the same as on
             // macOS. The capture phase sees the key before the text view,
             // which would otherwise insert a new line for both.
@@ -260,61 +292,35 @@ impl Window {
         glib::Object::builder().property("application", app).build()
     }
 
-    /// Rebuilds the sidebar: one section per date group, newest first.
+    /// Rebuilds the sidebar: one section per period, newest first.
     /// `AdwSidebar` has no model for sections, so we recreate them.
     fn render_sidebar(&self) {
         let sidebar = &self.imp().sidebar;
         sidebar.remove_all();
 
-        // "New Chat" comes first, in a section without a title.
-        let actions = adw::SidebarSection::new();
-        let new_chat = adw::SidebarItem::new("New Chat");
-        new_chat.set_icon_name(Some("chat-message-new-symbolic"));
-        actions.append(new_chat);
-        sidebar.append(actions);
-
-        let now = glib::DateTime::now_local().expect("local time is available");
-        let selected = self.model().selected_chat();
-        // While the new chat is open, "New Chat" is the selected item.
-        if selected.is_none() {
-            sidebar.set_selected(0);
-        }
-        let mut current: Option<(String, adw::SidebarSection)> = None;
-        for (index, chat) in self.model().chats().iter::<ChatObject>().enumerate() {
-            let chat = chat.expect("chats do not change while we read them");
-            let title = chat_group::title(&chat.updated_at(), &now);
-            if current
-                .as_ref()
-                .is_none_or(|(current_title, _)| *current_title != title)
-            {
-                let section = adw::SidebarSection::new();
-                section.set_title(Some(&title));
-                sidebar.append(section.clone());
-                current = Some((title, section));
-            }
-            let (_, section) = current.as_ref().expect("a section exists");
-            section.append(adw::SidebarItem::new(&chat.title()));
-            if selected.as_ref() == Some(&chat) {
-                sidebar.set_selected(index as u32 + FIRST_CHAT_INDEX);
+        // Nothing is selected while the new chat is open.
+        let selected = self.model().selected_chat().map(|chat| chat.id());
+        sidebar.set_selected(gtk::INVALID_LIST_POSITION);
+        let mut index = 0;
+        for chat_section in self.model().sections() {
+            let section = adw::SidebarSection::new();
+            section.set_title(Some(&period::title(chat_section.period)));
+            sidebar.append(section.clone());
+            for chat in chat_section.chats {
+                section.append(adw::SidebarItem::new(&chat.title));
+                if selected == Some(chat.id) {
+                    sidebar.set_selected(index);
+                }
+                index += 1;
             }
         }
     }
 
-    /// Chats follow "New Chat" in the same order as `chats`, so a chat's
-    /// sidebar index is its position in `chats` plus [`FIRST_CHAT_INDEX`].
+    /// Sidebar items follow the order of `chats`, so an item's index is the
+    /// chat's position.
     fn activate_sidebar_item(&self, index: u32) {
-        match index.checked_sub(FIRST_CHAT_INDEX) {
-            None => self.model().send(Action::OpenNewChat),
-            Some(position) => {
-                if let Some(chat) = self
-                    .model()
-                    .chats()
-                    .item(position)
-                    .and_downcast::<ChatObject>()
-                {
-                    self.model().send(Action::SelectChat { id: chat.id() });
-                }
-            }
+        if let Some(chat) = self.model().chats().item(index).and_downcast::<ChatObject>() {
+            self.model().send(Action::SelectChat { id: chat.id() });
         }
         // A collapsed sidebar covers the chat, so close it after a choice.
         let split_view = &self.imp().split_view;
@@ -330,14 +336,11 @@ impl Window {
             .add_toast(adw::Toast::new("Copied to clipboard"));
     }
 
+    /// Sends the draft; the core clears it, which empties the text view.
     fn send_prompt(&self) {
-        let buffer = self.imp().prompt.buffer();
-        let (start, end) = buffer.bounds();
         self.model().send(Action::SendMessage {
-            content: buffer.text(&start, &end, false).into(),
             sent_at: SystemTime::now(),
         });
-        buffer.set_text("");
     }
 
     /// Waits one main-loop cycle, so that the list has the new messages.
@@ -354,4 +357,10 @@ impl Window {
             }
         ));
     }
+}
+
+/// All of `buffer`'s text.
+fn buffer_text(buffer: &gtk::TextBuffer) -> String {
+    let (start, end) = buffer.bounds();
+    buffer.text(&start, &end, false).into()
 }

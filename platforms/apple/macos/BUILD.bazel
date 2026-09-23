@@ -10,6 +10,7 @@ swift_library(
     copts = ["-swift-version", "6"],
     module_name = "MiracleApp",
     target_compatible_with = REQUIRES_MACOS_HOST,
+    deps = ["//platforms/apple/MiracleCore"],
 )
 
 apple_bundle_version(
@@ -22,9 +23,10 @@ apple_bundle_version(
 macos_application(
     name = "app",
     bundle_id = APP_ID,
+    app_icons = ["//platforms/apple:app_icon"],
     bundle_name = APP_NAME,
     infoplists = ["Info.plist"],
-    minimum_os_version = "15.0",
+    minimum_os_version = "26.0",
     target_compatible_with = REQUIRES_MACOS_HOST,
     version = ":version",
     deps = [":AppLib"],

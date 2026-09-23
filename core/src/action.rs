@@ -7,11 +7,10 @@ pub enum Action {
     OpenNewChat,
     /// Opens the chat with this [`crate::Chat::id`].
     SelectChat { id: u64 },
-    /// Adds a user message to the selected chat, or creates a chat with it
-    /// if the new chat is open. The shell gives the time, so
-    /// [`crate::reduce`] stays pure.
-    SendMessage {
-        content: String,
-        sent_at: SystemTime,
-    },
+    /// Replaces the composer text.
+    EditDraft { text: String },
+    /// Sends the draft as a user message to the selected chat, or creates a
+    /// chat with it if the new chat is open, and clears the draft. The
+    /// shell gives the time, so [`crate::reduce`] stays pure.
+    SendMessage { sent_at: SystemTime },
 }

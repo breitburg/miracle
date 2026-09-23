@@ -1,8 +1,7 @@
 use crate::{Action, Chat, Message, Role, State};
 
 /// Applies `action` to `state`. Pure: all business rules live here.
-pub fn reduce(state: &State, action: Action) -> State {
-    let mut state = state.clone();
+pub fn reduce(mut state: State, action: Action) -> State {
     match action {
         Action::OpenNewChat => state.selected_chat_id = None,
         Action::SelectChat { id } => {
@@ -10,14 +9,15 @@ pub fn reduce(state: &State, action: Action) -> State {
                 state.selected_chat_id = Some(id);
             }
         }
-        Action::SendMessage { content, sent_at } => {
-            let content = content.trim();
+        Action::EditDraft { text } => state.draft = text,
+        Action::SendMessage { sent_at } => {
+            let content = state.draft.trim().to_owned();
             if content.is_empty() {
                 return state;
             }
             let message = Message {
                 role: Role::User,
-                content: content.to_owned(),
+                content,
             };
             match state.selected_chat_id {
                 // The new chat is open: its first message creates it.
@@ -27,7 +27,7 @@ pub fn reduce(state: &State, action: Action) -> State {
                         0,
                         Chat {
                             id,
-                            title: title_from(content),
+                            title: title_from(&message.content),
                             updated_at: sent_at,
                             messages: vec![message],
                         },
@@ -35,15 +35,17 @@ pub fn reduce(state: &State, action: Action) -> State {
                     state.selected_chat_id = Some(id);
                 }
                 Some(id) => {
-                    if let Some(position) = state.chats.iter().position(|chat| chat.id == id) {
-                        // The chat is now the newest, so it moves to the top.
-                        let mut chat = state.chats.remove(position);
-                        chat.messages.push(message);
-                        chat.updated_at = sent_at;
-                        state.chats.insert(0, chat);
-                    }
+                    let Some(position) = state.chats.iter().position(|chat| chat.id == id) else {
+                        return state;
+                    };
+                    // The chat is now the newest, so it moves to the top.
+                    let mut chat = state.chats.remove(position);
+                    chat.messages.push(message);
+                    chat.updated_at = sent_at;
+                    state.chats.insert(0, chat);
                 }
             }
+            state.draft.clear();
         }
     }
     state
@@ -73,27 +75,40 @@ mod tests {
         State {
             chats: vec![chat(1, 0), chat(2, 10)],
             selected_chat_id: Some(2),
+            ..Default::default()
         }
     }
 
-    fn send(content: &str) -> Action {
-        Action::SendMessage {
-            content: content.to_owned(),
-            sent_at: SystemTime::UNIX_EPOCH + Duration::from_secs(2000),
-        }
+    fn type_draft(state: State, text: &str) -> State {
+        reduce(
+            state,
+            Action::EditDraft {
+                text: text.to_owned(),
+            },
+        )
+    }
+
+    /// Types `content` into the composer and sends it.
+    fn send(state: State, content: &str) -> State {
+        reduce(
+            type_draft(state, content),
+            Action::SendMessage {
+                sent_at: SystemTime::UNIX_EPOCH + Duration::from_secs(2000),
+            },
+        )
     }
 
     #[test]
     fn open_new_chat_clears_the_selection() {
-        let s = reduce(&state(), Action::OpenNewChat);
+        let s = reduce(state(), Action::OpenNewChat);
         assert_eq!(s.selected_chat_id, None);
         assert_eq!(s.chats, state().chats);
     }
 
     #[test]
     fn first_message_of_a_new_chat_creates_it() {
-        let open = reduce(&state(), Action::OpenNewChat);
-        let s = reduce(&open, send("  Plan a trip\nto Lisbon "));
+        let open = reduce(state(), Action::OpenNewChat);
+        let s = send(open, "  Plan a trip\nto Lisbon ");
         let top = &s.chats[0];
         assert_eq!(top.id, 3);
         assert_eq!(top.title, "Plan a trip");
@@ -110,24 +125,25 @@ mod tests {
         );
         assert_eq!(s.chats.len(), 3);
         assert_eq!(s.selected_chat_id, Some(3));
+        assert_eq!(s.draft, "");
     }
 
     #[test]
     fn first_chat_in_an_empty_state_gets_id_one() {
-        let s = reduce(&State::default(), send("Hello"));
+        let s = send(State::default(), "Hello");
         assert_eq!(s.chats[0].id, 1);
     }
 
     #[test]
     fn selects_only_existing_chats() {
-        let s = reduce(&state(), Action::SelectChat { id: 1 });
+        let s = reduce(state(), Action::SelectChat { id: 1 });
         assert_eq!(s.selected_chat_id, Some(1));
-        assert_eq!(reduce(&s, Action::SelectChat { id: 9 }), s);
+        assert_eq!(reduce(s.clone(), Action::SelectChat { id: 9 }), s);
     }
 
     #[test]
     fn send_adds_trimmed_user_message_and_moves_chat_to_top() {
-        let s = reduce(&state(), send("  Hello \n"));
+        let s = send(state(), "  Hello \n");
         let top = &s.chats[0];
         assert_eq!(top.id, 2);
         assert_eq!(
@@ -144,14 +160,24 @@ mod tests {
     }
 
     #[test]
-    fn send_ignores_blank_content_and_unknown_chats() {
-        assert_eq!(reduce(&state(), send(" \n ")), state());
-        let open = reduce(&state(), Action::OpenNewChat);
-        assert_eq!(reduce(&open, send(" \n ")), open);
+    fn send_keeps_blank_drafts_and_drafts_for_unknown_chats() {
+        let blank = send(state(), " \n ");
+        assert_eq!(blank.chats, state().chats);
+        assert_eq!(blank.draft, " \n ");
+        let open = reduce(state(), Action::OpenNewChat);
+        assert_eq!(send(open.clone(), " \n ").chats, open.chats);
         let unknown = State {
             selected_chat_id: Some(9),
             ..state()
         };
-        assert_eq!(reduce(&unknown, send("Hello")), unknown);
+        let s = send(unknown.clone(), "Hello");
+        assert_eq!(s.chats, unknown.chats);
+        assert_eq!(s.draft, "Hello");
+    }
+
+    #[test]
+    fn draft_survives_switching_chats() {
+        let typed = type_draft(state(), "Hi");
+        assert_eq!(reduce(typed, Action::SelectChat { id: 1 }).draft, "Hi");
     }
 }

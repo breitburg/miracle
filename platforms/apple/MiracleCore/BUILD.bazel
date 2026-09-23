@@ -1,0 +1,45 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_swift//swift:swift_interop_hint.bzl", "swift_interop_hint")
+load("@rules_swift//swift:swift_library.bzl", "swift_library")
+load("//platforms/apple:defs.bzl", "REQUIRES_MACOS_HOST")
+
+# Swift bindings for //ffi, generated in library mode from the static
+# library built for the current Apple platform.
+genrule(
+    name = "bindings",
+    srcs = ["//ffi:miracle_ffi"],
+    outs = [
+        "miracle_ffi.swift",
+        "miracle_ffiFFI.h",
+    ],
+    cmd = "$(execpath //tools/uniffi-bindgen-swift) --swift-sources --headers $< $(RULEDIR) > /dev/null",
+    target_compatible_with = REQUIRES_MACOS_HOST,
+    tools = ["//tools/uniffi-bindgen-swift"],
+)
+
+swift_interop_hint(
+    name = "ffi_module",
+    module_name = "miracle_ffiFFI",
+)
+
+# The C declarations the generated Swift calls, linked with the Rust archive.
+cc_library(
+    name = "miracle_ffiFFI",
+    hdrs = ["miracle_ffiFFI.h"],
+    aspect_hints = [":ffi_module"],
+    target_compatible_with = REQUIRES_MACOS_HOST,
+    deps = ["//ffi:miracle_ffi"],
+)
+
+swift_library(
+    name = "MiracleCore",
+    srcs = [
+        "miracle_ffi.swift",
+        "Sources/Identifiable.swift",
+    ],
+    copts = ["-swift-version", "6"],
+    module_name = "MiracleCore",
+    target_compatible_with = REQUIRES_MACOS_HOST,
+    visibility = ["//platforms/apple/macos:__pkg__"],
+    deps = [":miracle_ffiFFI"],
+)

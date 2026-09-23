@@ -30,6 +30,12 @@ crate.spec(
     version = "=0.32.1",
 )
 
+crate.spec(
+    package = "jiff",
+    repositories = ["crates"],
+    version = "0.2.37",
+)
+
 # GNOME shell (Linux only). Features pin the minimum runtime: GTK 4.22 and
 # libadwaita 1.9 (GNOME 50).
 crate.spec(
@@ -75,6 +81,21 @@ crate.from_specs(
     cargo_lockfile = "//third_party:crates.Cargo.lock",
 )
 use_repo(crate, "crates")
+
+# Host tools. Kept apart from @crates so the bindings generator's
+# dependencies never reach the shipped libraries.
+crate.spec(
+    default_features = False,
+    features = ["cli"],
+    package = "uniffi",
+    repositories = ["bindgen_crates"],
+    version = "=0.32.1",
+)
+crate.from_specs(
+    name = "bindgen_crates",
+    cargo_lockfile = "//third_party:bindgen_crates.Cargo.lock",
+)
+use_repo(crate, "bindgen_crates")
 
 # Host C libraries for the GNOME shell, resolved once with pkg-config.
 system_libs = use_extension("//third_party/system_libs:extension.bzl", "system_libs")

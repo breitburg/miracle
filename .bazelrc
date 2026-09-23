@@ -1,0 +1,3 @@
+# The Apple shells use macOS 26 SDK APIs, also when built outside an app.
+common --macos_minimum_os=26.0
+common --host_macos_minimum_os=26.0
