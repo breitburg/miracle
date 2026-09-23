@@ -32,7 +32,6 @@ struct MessageRow: View {
     private var content: some View {
         let text = Text(message.content)
             .lineSpacing(6)
-            .textSelection(.enabled)
         if isUser {
             text
                 .padding(.horizontal, Layout.bubblePadding)
@@ -40,8 +39,10 @@ struct MessageRow: View {
                 .background(.fill.tertiary, in: .rect(cornerRadius: Layout.cornerRadius))
                 .padding(.leading, 48)
         } else {
-            // Lines up with the text inside user bubbles.
+            // Lines up with the text inside user bubbles. Only assistant
+            // text is selectable, as on GNOME.
             text
+                .textSelection(.enabled)
                 .padding(.horizontal, Layout.bubblePadding)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }

@@ -49,3 +49,34 @@ listview.message-list > row {
 .message:focus-within:focus-visible .message-actions {
   opacity: 1;
 }
+
+/* The composer: flat, with the fill of a user message and a corner
+ * concentric with the send button. The text view drops its own background
+ * to show the fill. */
+.composer {
+  border-radius: var(--composer-radius);
+  background-color: color-mix(in srgb, currentColor 10%, transparent);
+}
+
+.composer textview,
+.composer textview > text {
+  background: none;
+}
+
+/* Adwaita's 40px minimum slider makes the scrollbar taller than one line of
+ * text, and the scrollbar's minimum sets the composer's. */
+.composer scrollbar.vertical slider {
+  min-height: 0;
+}
+
+/* Looser lines in messages, near the extra line spacing on macOS. */
+.bubble label,
+.assistant-text {
+  line-height: 1.5;
+}
+
+/* Assistant text is selectable but not editable, so it shows no caret, as
+ * on macOS. */
+.assistant-text {
+  caret-color: transparent;
+}

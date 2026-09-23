@@ -6,22 +6,20 @@ using Adw 1;
 // title to `title`.
 template $MiracleChatView: Adw.Bin {
   child: Adw.ToastOverlay toast_overlay {
-    // Vertical split: the composer keeps its height when the window
-    // resizes, and the handle resizes it.
-    child: Paned {
+    child: Box {
       orientation: vertical;
-      resize-end-child: false;
-      shrink-start-child: false;
-      shrink-end-child: false;
+
       // A new chat has no messages yet, so it shows a hint instead. The
       // page is set in chat_view.rs.
-      start-child: Stack stack {
+      Stack stack {
+        vexpand: true;
+
         StackPage {
           name: "messages";
 
           child: ScrolledWindow {
             hscrollbar-policy: never;
-            // `maximum-size` comes from CONTENT_MAX_WIDTH in window.rs.
+            // `maximum-size` comes from CONTENT_MAX_WIDTH in chat_view.rs.
             child: Adw.ClampScrollable message_clamp {
               child: ListView message_list {
                 model: NoSelection {
@@ -37,7 +35,7 @@ template $MiracleChatView: Adw.Bin {
                     // hover area covers the whole row.
                     child: Box {
                       orientation: vertical;
-                      spacing: 12;
+                      spacing: 6;
                       // User messages are bubbles at the end; assistant
                       // messages are plain text.
                       Stack {
@@ -72,6 +70,7 @@ template $MiracleChatView: Adw.Bin {
                             xalign: 0;
                             wrap: true;
                             wrap-mode: word_char;
+                            selectable: true;
                             label: bind template.item as <$MiracleMessageObject>.content;
 
                             styles [
@@ -161,26 +160,26 @@ template $MiracleChatView: Adw.Bin {
             ]
           };
         }
-      };
+      }
 
-      // Clamped like the messages, but the pane stays full-width. The text
-      // view carries the padding as its own margins, so scrolled text
-      // reaches the top and bottom edges. The margins, also of the send
-      // button, come from CONTENT_PADDING and CONTENT_VERTICAL_PADDING in
-      // window.rs.
-      end-child: Adw.Clamp composer_clamp {
+      // As on macOS: a rounded field as wide as the messages, inset from
+      // the sides and the bottom, that grows with its text. The text view
+      // carries the padding as its own margins, so scrolled text reaches
+      // the top and bottom edges. The insets, margins and maximum height
+      // come from chat_view.rs.
+      Adw.Clamp composer_clamp {
         child: Box {
+          // Scrolled text stays inside the rounded corners.
+          overflow: hidden;
+
           // GtkTextView has no placeholder, so a label covers it while the
           // buffer is empty.
           Overlay {
             hexpand: true;
-            // `external`: the text still scrolls, but without a scrollbar,
-            // whose minimum height would set the minimum of the composer.
-            child: ScrolledWindow {
-              hexpand: true;
-              vexpand: true;
+
+            child: ScrolledWindow prompt_scroller {
               hscrollbar-policy: never;
-              vscrollbar-policy: external;
+              propagate-natural-height: true;
 
               child: TextView prompt {
                 wrap-mode: word_char;
@@ -204,8 +203,9 @@ template $MiracleChatView: Adw.Bin {
             }
           }
 
+          // At the bottom, as on macOS, while the field grows upwards.
           Button send_button {
-            valign: start;
+            valign: end;
             icon-name: "go-up-symbolic";
             tooltip-text: _("Send");
             action-name: "chat.send";
@@ -215,8 +215,12 @@ template $MiracleChatView: Adw.Bin {
               "suggested-action",
             ]
           }
+
+          styles [
+            "composer",
+          ]
         };
-      };
+      }
     };
   };
 }

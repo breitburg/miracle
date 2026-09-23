@@ -12,20 +12,36 @@ use crate::app_model::AppModel;
 use crate::message_object::MessageObject;
 
 /// Maximum width of the messages and of the composer row, in pixels.
-const CONTENT_MAX_WIDTH: i32 = 640;
+const CONTENT_MAX_WIDTH: i32 = 560;
 
 /// Horizontal padding of the messages and of the composer, in pixels.
 /// style.css reads it as `--content-padding`, see [`provide_css_variables`].
 const CONTENT_PADDING: i32 = 16;
 
-/// Vertical padding of the messages and of the composer, in pixels.
+/// Vertical padding of the messages, in pixels.
 /// style.css reads it as `--content-vertical-padding`.
 const CONTENT_VERTICAL_PADDING: i32 = 12;
 
 /// Padding inside a user message's bubble, in pixels. style.css reads them
-/// as `--bubble-padding` and `--bubble-vertical-padding`.
+/// as `--bubble-padding` and `--bubble-vertical-padding`. The vertical
+/// padding is 4px less than on macOS, because the messages' CSS
+/// `line-height` also adds space above the first line and below the last.
 const BUBBLE_PADDING: i32 = 16;
-const BUBBLE_VERTICAL_PADDING: i32 = 12;
+const BUBBLE_VERTICAL_PADDING: i32 = 8;
+
+/// Space around the send button inside the composer, in pixels.
+const COMPOSER_INSET: i32 = 6;
+
+/// Height of Adwaita's circular buttons, in pixels. With [`COMPOSER_INSET`]
+/// it gives the composer a corner concentric with the send button; style.css
+/// reads that as `--composer-radius`.
+const SEND_BUTTON_SIZE: i32 = 34;
+
+/// Space between the text and the send button, in pixels.
+const COMPOSER_SPACING: i32 = 8;
+
+/// The composer grows with its text up to this many lines, then scrolls.
+const COMPOSER_MAX_LINES: usize = 8;
 
 /// Gives Rust layout constants to style.css as CSS variables, so both
 /// share one value.
@@ -35,7 +51,9 @@ pub fn provide_css_variables(display: &gtk::gdk::Display) {
         ":root {{ --content-padding: {CONTENT_PADDING}px; \
          --content-vertical-padding: {CONTENT_VERTICAL_PADDING}px; \
          --bubble-padding: {BUBBLE_PADDING}px; \
-         --bubble-vertical-padding: {BUBBLE_VERTICAL_PADDING}px; }}"
+         --bubble-vertical-padding: {BUBBLE_VERTICAL_PADDING}px; \
+         --composer-radius: {composer_radius}px; }}",
+        composer_radius = SEND_BUTTON_SIZE / 2 + COMPOSER_INSET,
     ));
     gtk::style_context_add_provider_for_display(
         display,
@@ -79,6 +97,8 @@ mod imp {
         pub(super) message_list: TemplateChild<gtk::ListView>,
         #[template_child]
         pub(super) composer_clamp: TemplateChild<adw::Clamp>,
+        #[template_child]
+        pub(super) prompt_scroller: TemplateChild<gtk::ScrolledWindow>,
         #[template_child]
         pub(super) prompt: TemplateChild<gtk::TextView>,
         #[template_child]
@@ -161,8 +181,11 @@ mod imp {
         fn constructed(&self) {
             self.parent_constructed();
             let view = self.obj();
+            // The template's `bind template.messages` ran in `init_template`,
+            // before the store existed, so it must hear about it.
             self.messages
                 .replace(Some(gio::ListStore::new::<MessageObject>()));
+            view.notify_messages();
 
             // A threshold equal to the maximum turns off the clamps' gradual
             // tightening: the content takes all the width up to the maximum.
@@ -174,16 +197,37 @@ mod imp {
                 .set_maximum_size(super::CONTENT_MAX_WIDTH);
             self.composer_clamp
                 .set_tightening_threshold(super::CONTENT_MAX_WIDTH);
+            // The same inset from the sides and the bottom of the view.
+            self.composer_clamp.set_margin_start(super::CONTENT_PADDING);
+            self.composer_clamp.set_margin_end(super::CONTENT_PADDING);
+            self.composer_clamp
+                .set_margin_bottom(super::CONTENT_PADDING);
             self.prompt.set_left_margin(super::CONTENT_PADDING);
-            self.prompt.set_right_margin(super::CONTENT_PADDING);
-            self.prompt.set_top_margin(super::CONTENT_VERTICAL_PADDING);
-            self.prompt
-                .set_bottom_margin(super::CONTENT_VERTICAL_PADDING);
-            self.send_button.set_margin_end(super::CONTENT_PADDING);
-            self.send_button
-                .set_margin_top(super::CONTENT_VERTICAL_PADDING);
-            self.send_button
-                .set_margin_bottom(super::CONTENT_VERTICAL_PADDING);
+            self.prompt.set_right_margin(super::COMPOSER_SPACING);
+            self.send_button.set_margin_top(super::COMPOSER_INSET);
+            self.send_button.set_margin_bottom(super::COMPOSER_INSET);
+            self.send_button.set_margin_end(super::COMPOSER_INSET);
+
+            // The line height depends on the font, which the text view has
+            // once it is realized. The vertical margins center one line on
+            // the send button; an odd pixel goes to the bottom.
+            self.prompt.connect_realize(glib::clone!(
+                #[weak]
+                view,
+                move |prompt| {
+                    let text_height = |text: &str| prompt.create_pango_layout(Some(text)).pixel_size().1;
+                    let space = super::SEND_BUTTON_SIZE + 2 * super::COMPOSER_INSET - text_height("");
+                    prompt.set_top_margin(space / 2);
+                    prompt.set_bottom_margin(space - space / 2);
+                    let lines = text_height(&"\n".repeat(super::COMPOSER_MAX_LINES - 1));
+                    view.imp()
+                        .prompt_scroller
+                        .set_max_content_height(lines + space);
+                }
+            ));
+
+            // Only disables the button: the core ignores blank drafts itself.
+            view.action_set_enabled("chat.send", false);
 
             // Edits go to the view's draft in the core; its changes (such as
             // clearing after a send) come back in `render`.
@@ -191,10 +235,11 @@ mod imp {
                 #[weak]
                 view,
                 move |buffer| {
+                    let text = super::buffer_text(buffer);
+                    view.action_set_enabled("chat.send", !text.trim().is_empty());
                     let (Some(model), Some(state)) = (view.imp().model.get(), view.state()) else {
                         return;
                     };
-                    let text = super::buffer_text(buffer);
                     if text != state.draft {
                         model.send(miracle_core::Action::EditDraft {
                             view_id: state.id,

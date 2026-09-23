@@ -3,7 +3,7 @@ import CoreGraphics
 /// Shared metrics, matching the GNOME shell's.
 enum Layout {
     /// Messages and the composer are centered and at most this wide.
-    static let contentMaxWidth: CGFloat = 640
+    static let contentMaxWidth: CGFloat = 560
     static let contentPadding: CGFloat = 16
     static let contentVerticalPadding: CGFloat = 12
     /// Inside a user message's bubble.
