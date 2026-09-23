@@ -14,8 +14,7 @@ pub struct Store {
 }
 
 impl Store {
-    /// A store with sample chats, until the core can create them. The newest
-    /// chat is open.
+    /// A store with sample chats, until the core can create them.
     pub fn new() -> Self {
         const HOUR: u64 = 60 * 60;
         const DAY: u64 = 24 * HOUR;
@@ -83,11 +82,9 @@ impl Store {
         })
         .collect();
         chats.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
-        let selected_chat_id = chats.first().map(|chat| chat.id);
         Self {
             state: Mutex::new(State {
                 chats,
-                selected_chat_id,
                 ..Default::default()
             }),
         }
@@ -106,6 +103,14 @@ impl Store {
         let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
         *state = reduce(mem::take(&mut state), action);
         state.clone()
+    }
+
+    /// Opens a view ([`Action::OpenView`]) and returns its id, for the
+    /// window that shows it.
+    pub fn open_view(&self, chat_id: Option<u64>) -> u64 {
+        let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
+        *state = reduce(mem::take(&mut state), Action::OpenView { chat_id });
+        state.views.last().expect("the view was just opened").id
     }
 
     /// The chats grouped for the sidebar, by the local calendar day they

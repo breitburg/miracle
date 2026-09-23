@@ -3,15 +3,15 @@ import SwiftUI
 
 /// A chat's messages, oldest first, in a centered column.
 struct MessageList: View {
-    let chat: Chat
+    let messages: [Message]
     @State private var position = ScrollPosition()
 
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 0) {
                 // Messages are only ever appended, so an index is a stable id.
-                ForEach(chat.messages.indices, id: \.self) { index in
-                    MessageRow(message: chat.messages[index])
+                ForEach(messages.indices, id: \.self) { index in
+                    MessageRow(message: messages[index])
                         .transition(
                             .asymmetric(
                                 insertion: .opacity.combined(with: .offset(y: 16)),
@@ -32,7 +32,7 @@ struct MessageList: View {
         .defaultScrollAnchor(.bottom, for: .initialOffset)
         .defaultScrollAnchor(.bottom, for: .sizeChanges)
         // Bring a sent message into view, even when scrolled back.
-        .onChange(of: chat.messages.count) { _, count in
+        .onChange(of: messages.count) { _, count in
             withAnimation(.snappy) { position.scrollTo(id: count - 1, anchor: .bottom) }
         }
     }

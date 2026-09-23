@@ -10,7 +10,10 @@ _LINUX_ONLY = ["@platforms//os:linux"]
 genrule(
     name = "ui",
     srcs = glob(["data/ui/*.blp"]),
-    outs = ["data/ui/window.ui"],
+    outs = [
+        "data/ui/chat_view.ui",
+        "data/ui/window.ui",
+    ],
     cmd = host_tool("blueprint-compiler", "blueprint-compiler") +
           " batch-compile $(RULEDIR)/data/ui " + package_name() + "/data/ui $(SRCS)",
     target_compatible_with = _LINUX_ONLY,

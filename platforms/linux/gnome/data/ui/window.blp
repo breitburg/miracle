@@ -1,6 +1,5 @@
 using Gtk 4.0;
 using Adw 1;
-using Gio 2.0;
 
 template $MiracleWindow: Adw.ApplicationWindow {
   title: _("Miracle");
@@ -19,280 +18,65 @@ template $MiracleWindow: Adw.ApplicationWindow {
     }
   }
 
-  content: Adw.ToastOverlay toast_overlay {
-    // Equal minimum and maximum give a fixed width: the default maximum,
-    // which is also the width of the collapsed overlay.
-    child: Adw.OverlaySplitView split_view {
-      min-sidebar-width: 280;
-      max-sidebar-width: 280;
+  // Equal minimum and maximum give a fixed width: the default maximum,
+  // which is also the width of the collapsed overlay.
+  content: Adw.OverlaySplitView split_view {
+    min-sidebar-width: 280;
+    max-sidebar-width: 280;
 
-      sidebar: Adw.ToolbarView {
-        [top]
-        Adw.HeaderBar {
-          title-widget: Adw.WindowTitle {
-            title: _("Chats");
-          };
-        }
-
-        content: Adw.Sidebar sidebar {};
-      };
-
-      // `view`: the flat bars have no background, so the page itself must
-      // have the view background of its ListView (as GNOME Calendar does).
-      content: Adw.ToolbarView {
-        [top]
-        Adw.HeaderBar {
-          // As in GNOME Calendar: a toggle at the start, F9 as the shortcut.
-
-          [start]
-          ToggleButton {
-            icon-name: "sidebar-show-symbolic";
-            tooltip-text: _("Toggle Sidebar");
-            active: bind split_view.show-sidebar bidirectional;
-
-            ShortcutController {
-              scope: managed;
-
-              Shortcut {
-                trigger: "F9";
-                action: "activate";
-              }
-            }
-          }
-
-          // Here rather than in the sidebar, so it stays in reach when the
-          // sidebar is collapsed.
-          [end]
-          Button {
-            icon-name: "chat-message-new-symbolic";
-            tooltip-text: _("New Chat");
-            action-name: "chat.new";
-          }
-
-          title-widget: Adw.WindowTitle {
-            title: bind $chat_title(template.model as <$MiracleAppModel>.selected-chat) as <string>;
-          };
-        }
-
-        // Vertical split: the composer keeps its height when the window
-        // resizes, and the handle resizes it.
-        content: Paned {
-          orientation: vertical;
-          resize-end-child: false;
-          shrink-start-child: false;
-          shrink-end-child: false;
-          // The new chat has no messages yet, so it shows a hint instead.
-          start-child: Stack {
-            visible-child-name: bind $chat_page(template.model as <$MiracleAppModel>.selected-chat) as <string>;
-
-            StackPage {
-              name: "messages";
-
-              child: ScrolledWindow {
-                hscrollbar-policy: never;
-                // `maximum-size` comes from CONTENT_MAX_WIDTH in window.rs.
-                child: Adw.ClampScrollable message_clamp {
-                  child: ListView message_list {
-                    model: NoSelection {
-                      // A callback, not a lookup: a lookup on no chat fails, and GTK
-                      // then keeps the previous chat's messages.
-                      model: bind $chat_messages(template.model as <$MiracleAppModel>.selected-chat) as <Gio.ListModel>;
-                    };
-
-                    factory: BuilderListItemFactory {
-                      template ListItem {
-                        activatable: false;
-                        // Tab goes straight to the message's buttons.
-                        focusable: false;
-                        // Padding comes from `.message` in style.css, so the
-                        // hover area covers the whole row.
-                        child: Box {
-                          orientation: vertical;
-                          spacing: 12;
-                          // User messages are bubbles at the end; assistant
-                          // messages are plain text.
-                          Stack {
-                            vhomogeneous: false;
-                            visible-child-name: bind $role_page(
-                              template.item as <$MiracleMessageObject>.role
-                              ) as <string>;
-
-                            StackPage {
-                              name: "user";
-
-                              child: Box {
-                                halign: end;
-
-                                Label {
-                                  xalign: 0;
-                                  wrap: true;
-                                  wrap-mode: word_char;
-                                  label: bind template.item as <$MiracleMessageObject>.content;
-                                }
-
-                                styles [
-                                  "bubble",
-                                ]
-                              };
-                            }
-
-                            StackPage {
-                              name: "assistant";
-
-                              child: Label {
-                                xalign: 0;
-                                wrap: true;
-                                wrap-mode: word_char;
-                                label: bind template.item as <$MiracleMessageObject>.content;
-
-                                styles [
-                                  "assistant-text",
-                                ]
-                              };
-                            }
-                          }
-
-                          // Under the message, on the same side as the message. The
-                          // icons are small and dimmed; `.message-actions` in
-                          // style.css removes their padding from the layout.
-                          Box {
-                            halign: bind $actions_halign(template.item as <$MiracleMessageObject>.role) as <Align>;
-                            spacing: 20;
-
-                            Button {
-                              tooltip-text: _("Copy");
-
-                              child: Image {
-                                icon-name: "edit-copy-symbolic";
-                                pixel-size: 14;
-
-                                styles [
-                                  "dimmed",
-                                ]
-                              };
-
-                              clicked => $copy_message(template) not-swapped;
-
-                              styles [
-                                "flat",
-                                "circular",
-                              ]
-                            }
-
-                            // Does nothing yet.
-                            Button {
-                              tooltip-text: _("Edit");
-
-                              child: Image {
-                                icon-name: "document-edit-symbolic";
-                                pixel-size: 14;
-
-                                styles [
-                                  "dimmed",
-                                ]
-                              };
-
-                              styles [
-                                "flat",
-                                "circular",
-                              ]
-                            }
-
-                            styles [
-                              "message-actions",
-                            ]
-                          }
-
-                          styles [
-                            "message",
-                          ]
-                        };
-                      }
-                    };
-
-                    styles [
-                      "message-list",
-                    ]
-                  };
-                };
-              };
-            }
-
-            StackPage {
-              name: "new-chat";
-              // The native empty state, as in GNOME Text Editor and Contacts.
-              child: Adw.StatusPage {
-                icon-name: "chat-message-new-symbolic";
-                title: _("Start a Conversation");
-                description: _("Send your first message to begin");
-                // Smaller icon: the page shares its height with the composer.
-                styles [
-                  "compact",
-                ]
-              };
-            }
-          };
-
-          // Clamped like the messages, but the pane stays full-width. The text
-          // view carries the padding as its own margins, so scrolled text
-          // reaches the top and bottom edges. The margins, also of the send
-          // button, come from CONTENT_PADDING and CONTENT_VERTICAL_PADDING in
-          // window.rs.
-          end-child: Adw.Clamp composer_clamp {
-            child: Box {
-              // GtkTextView has no placeholder, so a label covers it while the
-              // buffer is empty.
-              Overlay {
-                hexpand: true;
-                // `external`: the text still scrolls, but without a scrollbar,
-                // whose minimum height would set the minimum of the composer.
-                child: ScrolledWindow {
-                  hexpand: true;
-                  vexpand: true;
-                  hscrollbar-policy: never;
-                  vscrollbar-policy: external;
-
-                  child: TextView prompt {
-                    wrap-mode: word_char;
-                    accepts-tab: false;
-                  };
-                };
-
-                [overlay]
-                Label {
-                  halign: start;
-                  valign: start;
-                  margin-top: bind prompt.top-margin;
-                  margin-start: bind prompt.left-margin;
-                  can-target: false;
-                  label: _("Message");
-                  visible: bind $is_empty(prompt.buffer as <TextBuffer>.text) as <bool>;
-
-                  styles [
-                    "dimmed",
-                  ]
-                }
-              }
-
-              Button send_button {
-                valign: start;
-                icon-name: "go-up-symbolic";
-                tooltip-text: _("Send");
-                action-name: "chat.send";
-
-                styles [
-                  "circular",
-                  "suggested-action",
-                ]
-              }
-            };
-          };
+    sidebar: Adw.ToolbarView {
+      [top]
+      Adw.HeaderBar {
+        title-widget: Adw.WindowTitle {
+          title: _("Chats");
         };
+      }
 
-        styles [
-          "view",
-        ]
-      };
+      content: Adw.Sidebar sidebar {};
+    };
+
+    // `view`: the flat bars have no background, so the page itself must
+    // have the view background of its ListView (as GNOME Calendar does).
+    content: Adw.ToolbarView {
+      [top]
+      Adw.HeaderBar {
+        // As in GNOME Calendar: a toggle at the start, F9 as the shortcut.
+
+        [start]
+        ToggleButton {
+          icon-name: "sidebar-show-symbolic";
+          tooltip-text: _("Toggle Sidebar");
+          active: bind split_view.show-sidebar bidirectional;
+
+          ShortcutController {
+            scope: managed;
+
+            Shortcut {
+              trigger: "F9";
+              action: "activate";
+            }
+          }
+        }
+
+        // Here rather than in the sidebar, so it stays in reach when the
+        // sidebar is collapsed.
+        [end]
+        Button {
+          icon-name: "chat-message-new-symbolic";
+          tooltip-text: _("New Chat");
+          action-name: "chat.new";
+        }
+
+        title-widget: Adw.WindowTitle {
+          title: bind chat_view.title;
+        };
+      }
+
+      content: $MiracleChatView chat_view {};
+
+      styles [
+        "view",
+      ]
     };
   };
 }

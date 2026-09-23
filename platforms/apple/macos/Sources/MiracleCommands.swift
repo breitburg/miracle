@@ -1,16 +1,22 @@
 import SwiftUI
 
-/// Menu bar commands: New Chat replaces New Window, since the app has one
-/// window over one store.
+extension FocusedValues {
+    /// Opens a new chat in the focused window, if it can.
+    @Entry var newChat: (() -> Void)?
+}
+
+/// Menu bar commands: New Chat replaces New Window. Only the main window
+/// offers it; chat windows each keep their one chat.
 struct MiracleCommands: Commands {
-    let model: AppModel
+    @FocusedValue(\.newChat) private var newChat
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
             Button("New Chat") {
-                model.send(.openNewChat)
+                newChat?()
             }
             .keyboardShortcut("n")
+            .disabled(newChat == nil)
         }
         SidebarCommands()
     }

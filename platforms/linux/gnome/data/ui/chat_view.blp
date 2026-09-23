@@ -1,0 +1,222 @@
+using Gtk 4.0;
+using Adw 1;
+
+// One core view: the shown chat's messages, or a hint for a new chat, above
+// the composer. The window around it supplies the header and binds its
+// title to `title`.
+template $MiracleChatView: Adw.Bin {
+  child: Adw.ToastOverlay toast_overlay {
+    // Vertical split: the composer keeps its height when the window
+    // resizes, and the handle resizes it.
+    child: Paned {
+      orientation: vertical;
+      resize-end-child: false;
+      shrink-start-child: false;
+      shrink-end-child: false;
+      // A new chat has no messages yet, so it shows a hint instead. The
+      // page is set in chat_view.rs.
+      start-child: Stack stack {
+        StackPage {
+          name: "messages";
+
+          child: ScrolledWindow {
+            hscrollbar-policy: never;
+            // `maximum-size` comes from CONTENT_MAX_WIDTH in window.rs.
+            child: Adw.ClampScrollable message_clamp {
+              child: ListView message_list {
+                model: NoSelection {
+                  model: bind template.messages;
+                };
+
+                factory: BuilderListItemFactory {
+                  template ListItem {
+                    activatable: false;
+                    // Tab goes straight to the message's buttons.
+                    focusable: false;
+                    // Padding comes from `.message` in style.css, so the
+                    // hover area covers the whole row.
+                    child: Box {
+                      orientation: vertical;
+                      spacing: 12;
+                      // User messages are bubbles at the end; assistant
+                      // messages are plain text.
+                      Stack {
+                        vhomogeneous: false;
+                        visible-child-name: bind $role_page(
+                          template.item as <$MiracleMessageObject>.role
+                          ) as <string>;
+
+                        StackPage {
+                          name: "user";
+
+                          child: Box {
+                            halign: end;
+
+                            Label {
+                              xalign: 0;
+                              wrap: true;
+                              wrap-mode: word_char;
+                              label: bind template.item as <$MiracleMessageObject>.content;
+                            }
+
+                            styles [
+                              "bubble",
+                            ]
+                          };
+                        }
+
+                        StackPage {
+                          name: "assistant";
+
+                          child: Label {
+                            xalign: 0;
+                            wrap: true;
+                            wrap-mode: word_char;
+                            label: bind template.item as <$MiracleMessageObject>.content;
+
+                            styles [
+                              "assistant-text",
+                            ]
+                          };
+                        }
+                      }
+
+                      // Under the message, on the same side as the message. The
+                      // icons are small and dimmed; `.message-actions` in
+                      // style.css removes their padding from the layout.
+                      Box {
+                        halign: bind $actions_halign(template.item as <$MiracleMessageObject>.role) as <Align>;
+                        spacing: 20;
+
+                        Button {
+                          tooltip-text: _("Copy");
+
+                          child: Image {
+                            icon-name: "edit-copy-symbolic";
+                            pixel-size: 14;
+
+                            styles [
+                              "dimmed",
+                            ]
+                          };
+
+                          clicked => $copy_message(template) not-swapped;
+
+                          styles [
+                            "flat",
+                            "circular",
+                          ]
+                        }
+
+                        // Does nothing yet.
+                        Button {
+                          tooltip-text: _("Edit");
+
+                          child: Image {
+                            icon-name: "document-edit-symbolic";
+                            pixel-size: 14;
+
+                            styles [
+                              "dimmed",
+                            ]
+                          };
+
+                          styles [
+                            "flat",
+                            "circular",
+                          ]
+                        }
+
+                        styles [
+                          "message-actions",
+                        ]
+                      }
+
+                      styles [
+                        "message",
+                      ]
+                    };
+                  }
+                };
+
+
+                styles [
+                  "message-list",
+                ]
+              };
+            };
+          };
+        }
+
+        StackPage {
+          name: "new-chat";
+          // The native empty state, as in GNOME Text Editor and Contacts.
+          child: Adw.StatusPage {
+            icon-name: "chat-message-new-symbolic";
+            title: _("Start a Conversation");
+            description: _("Send your first message to begin");
+            // Smaller icon: the page shares its height with the composer.
+            styles [
+              "compact",
+            ]
+          };
+        }
+      };
+
+      // Clamped like the messages, but the pane stays full-width. The text
+      // view carries the padding as its own margins, so scrolled text
+      // reaches the top and bottom edges. The margins, also of the send
+      // button, come from CONTENT_PADDING and CONTENT_VERTICAL_PADDING in
+      // window.rs.
+      end-child: Adw.Clamp composer_clamp {
+        child: Box {
+          // GtkTextView has no placeholder, so a label covers it while the
+          // buffer is empty.
+          Overlay {
+            hexpand: true;
+            // `external`: the text still scrolls, but without a scrollbar,
+            // whose minimum height would set the minimum of the composer.
+            child: ScrolledWindow {
+              hexpand: true;
+              vexpand: true;
+              hscrollbar-policy: never;
+              vscrollbar-policy: external;
+
+              child: TextView prompt {
+                wrap-mode: word_char;
+                accepts-tab: false;
+              };
+            };
+
+            [overlay]
+            Label {
+              halign: start;
+              valign: start;
+              margin-top: bind prompt.top-margin;
+              margin-start: bind prompt.left-margin;
+              can-target: false;
+              label: _("Message");
+              visible: bind $is_empty(prompt.buffer as <TextBuffer>.text) as <bool>;
+
+              styles [
+                "dimmed",
+              ]
+            }
+          }
+
+          Button send_button {
+            valign: start;
+            icon-name: "go-up-symbolic";
+            tooltip-text: _("Send");
+            action-name: "chat.send";
+
+            styles [
+              "circular",
+              "suggested-action",
+            ]
+          }
+        };
+      };
+    };
+  };
+}

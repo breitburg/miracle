@@ -2,9 +2,9 @@ import Foundation
 import MiracleCore
 import Observation
 
-/// Holds the core `Store` and republishes its state to SwiftUI, like the
-/// GNOME `MiracleAppModel`. Each part is its own property and changes only
-/// when the core's does, so typing does not redraw the chats.
+/// Holds the one core `Store` that every window shares, and republishes its
+/// state to SwiftUI, like the GNOME `MiracleAppModel`. Each window shows one
+/// core view by its id; views on the same chat share its messages.
 @MainActor
 @Observable
 final class AppModel {
@@ -14,23 +14,35 @@ final class AppModel {
     private(set) var chats: [Chat] = []
     /// `chats` grouped for the sidebar.
     private(set) var sections: [ChatSection] = []
-    /// `nil` while the new chat is open.
-    private(set) var selectedChatId: UInt64?
-    /// The unsent text in the composer.
-    private(set) var draft = ""
+    /// One per open window. Kept apart from `chats`, so typing a draft does
+    /// not redraw the chats.
+    private(set) var views: [ChatViewState] = []
+    /// The main window's view, open for the app's lifetime, on the newest
+    /// chat.
+    @ObservationIgnored let mainViewId: UInt64
 
     init() {
+        mainViewId = store.openView(chatId: store.state().chats.first?.id)
         apply(store.state())
     }
 
-    /// The open chat, or `nil` while the new chat is open.
-    var selectedChat: Chat? {
-        guard let selectedChatId else { return nil }
-        return chats.first { $0.id == selectedChatId }
+    func chat(_ id: UInt64) -> Chat? {
+        chats.first { $0.id == id }
+    }
+
+    func view(_ id: UInt64) -> ChatViewState? {
+        views.first { $0.id == id }
     }
 
     func send(_ action: Action) {
         apply(store.dispatch(action: action))
+    }
+
+    /// Opens a view on the chat and returns its id, for a new window.
+    func openView(chatId: UInt64?) -> UInt64 {
+        let id = store.openView(chatId: chatId)
+        apply(store.state())
+        return id
     }
 
     private func apply(_ state: MiracleCore.State) {
@@ -38,11 +50,8 @@ final class AppModel {
             chats = state.chats
             sections = store.chatSections(now: .now)
         }
-        if state.selectedChatId != selectedChatId {
-            selectedChatId = state.selectedChatId
-        }
-        if state.draft != draft {
-            draft = state.draft
+        if state.views != views {
+            views = state.views
         }
     }
 }

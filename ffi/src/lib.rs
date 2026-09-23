@@ -7,7 +7,9 @@
 use std::sync::Arc;
 use std::time::SystemTime;
 
-use miracle_core::{Action, Chat, ChatSection, ChatSummary, Message, Period, Role, State};
+use miracle_core::{
+    Action, Chat, ChatSection, ChatSummary, ChatViewState, Message, Period, Role, State,
+};
 
 uniffi::setup_scaffolding!();
 
@@ -32,24 +34,25 @@ pub struct Chat {
 }
 
 #[uniffi::remote(Record)]
+pub struct ChatViewState {
+    pub id: u64,
+    pub chat_id: Option<u64>,
+    pub draft: String,
+}
+
+#[uniffi::remote(Record)]
 pub struct State {
     pub chats: Vec<Chat>,
-    pub selected_chat_id: Option<u64>,
-    pub draft: String,
+    pub views: Vec<ChatViewState>,
 }
 
 #[uniffi::remote(Enum)]
 pub enum Action {
-    OpenNewChat,
-    SelectChat {
-        id: u64,
-    },
-    EditDraft {
-        text: String,
-    },
-    SendMessage {
-        sent_at: SystemTime,
-    },
+    OpenView { chat_id: Option<u64> },
+    CloseView { view_id: u64 },
+    ShowChat { view_id: u64, chat_id: Option<u64> },
+    EditDraft { view_id: u64, text: String },
+    SendMessage { view_id: u64, sent_at: SystemTime },
 }
 
 #[uniffi::remote(Enum)]
@@ -93,6 +96,11 @@ impl Store {
     /// Applies `action` and returns the new state.
     pub fn dispatch(&self, action: Action) -> State {
         self.0.dispatch(action)
+    }
+
+    /// Opens a view on the chat (a new chat for `None`) and returns its id.
+    pub fn open_view(&self, chat_id: Option<u64>) -> u64 {
+        self.0.open_view(chat_id)
     }
 
     /// The chats grouped for the sidebar, as seen at `now`.

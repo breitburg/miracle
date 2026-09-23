@@ -1,54 +1,32 @@
 //! Thin GObject adapter over the Rust `Store`, the GTK counterpart of the
-//! Swift `AppModel`.
+//! Swift `AppModel`. One model serves every window.
 //!
-//! Holds no business rules: it sends actions to the core and republishes the
-//! resulting state as GObject properties, so widgets can bind to them.
+//! Holds no business rules: it sends actions to the core, keeps the
+//! resulting state and tells widgets what changed, through the
+//! `chats-changed` and `views-changed` signals.
 
 use std::time::SystemTime;
 
 use gtk::glib;
+use gtk::glib::closure_local;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
-use miracle_core::{Action, ChatSection, State};
-
-use crate::chat_object::ChatObject;
+use miracle_core::{Action, Chat, ChatSection, ChatViewState, State};
 
 mod imp {
     use std::cell::RefCell;
+    use std::sync::OnceLock;
 
-    use gtk::prelude::*;
+    use gtk::glib;
+    use gtk::glib::subclass::Signal;
     use gtk::subclass::prelude::*;
-    use gtk::{gio, glib};
+    use miracle_core::{State, Store};
 
-    use crate::chat_object::ChatObject;
-
-    #[derive(glib::Properties)]
-    #[properties(wrapper_type = super::AppModel)]
+    #[derive(Default)]
     pub struct AppModel {
-        /// [`ChatObject`]s, newest first.
-        #[property(get)]
-        pub(super) chats: gio::ListStore,
-        /// The open chat, one of `chats`.
-        #[property(get, nullable)]
-        pub(super) selected_chat: RefCell<Option<ChatObject>>,
-        /// The unsent text in the composer.
-        #[property(get)]
-        pub(super) draft: RefCell<String>,
-        /// The core chats that `chats` shows, to skip rebuilds.
-        pub(super) rendered_chats: RefCell<Vec<miracle_core::Chat>>,
-        pub(super) store: miracle_core::Store,
-    }
-
-    impl Default for AppModel {
-        fn default() -> Self {
-            Self {
-                chats: gio::ListStore::new::<ChatObject>(),
-                selected_chat: RefCell::default(),
-                draft: RefCell::default(),
-                rendered_chats: RefCell::default(),
-                store: miracle_core::Store::new(),
-            }
-        }
+        pub(super) store: Store,
+        /// The state the widgets last heard about.
+        pub(super) state: RefCell<State>,
     }
 
     #[glib::object_subclass]
@@ -57,11 +35,22 @@ mod imp {
         type Type = super::AppModel;
     }
 
-    #[glib::derived_properties]
     impl ObjectImpl for AppModel {
+        fn signals() -> &'static [Signal] {
+            static SIGNALS: OnceLock<Vec<Signal>> = OnceLock::new();
+            SIGNALS.get_or_init(|| {
+                vec![
+                    // The chats or their order changed.
+                    Signal::builder("chats-changed").build(),
+                    // A view opened, closed, or changed its chat or draft.
+                    Signal::builder("views-changed").build(),
+                ]
+            })
+        }
+
         fn constructed(&self) {
             self.parent_constructed();
-            self.obj().render(&self.store.state());
+            self.state.replace(self.store.state());
         }
     }
 }
@@ -79,44 +68,66 @@ impl Default for AppModel {
 impl AppModel {
     pub fn send(&self, action: Action) {
         let state = self.imp().store.dispatch(action);
-        self.render(&state);
+        self.apply(state);
     }
 
-    /// `chats` grouped for the sidebar, as of now.
+    /// Opens a view on the chat (a new chat for `None`) and returns its id,
+    /// for the window that shows it.
+    pub fn open_view(&self, chat_id: Option<u64>) -> u64 {
+        let id = self.imp().store.open_view(chat_id);
+        self.apply(self.imp().store.state());
+        id
+    }
+
+    /// Newest first.
+    pub fn chats(&self) -> Vec<Chat> {
+        self.imp().state.borrow().chats.clone()
+    }
+
+    pub fn chat(&self, id: u64) -> Option<Chat> {
+        let state = self.imp().state.borrow();
+        state.chats.iter().find(|chat| chat.id == id).cloned()
+    }
+
+    pub fn view(&self, id: u64) -> Option<ChatViewState> {
+        let state = self.imp().state.borrow();
+        state.views.iter().find(|view| view.id == id).cloned()
+    }
+
+    /// The chats grouped for the sidebar, as of now.
     pub fn sections(&self) -> Vec<ChatSection> {
         self.imp().store.chat_sections(SystemTime::now())
     }
 
-    fn render(&self, state: &State) {
-        let imp = self.imp();
-        let chats_changed = *imp.rendered_chats.borrow() != state.chats;
-        let objects: Vec<ChatObject> = if chats_changed {
-            state.chats.iter().map(ChatObject::new).collect()
-        } else {
-            imp.chats
-                .iter()
-                .map(|chat| chat.expect("chats do not change"))
-                .collect()
+    pub fn connect_chats_changed<F: Fn(&Self) + 'static>(&self, f: F) -> glib::SignalHandlerId {
+        self.connect_closure(
+            "chats-changed",
+            false,
+            closure_local!(move |model: &AppModel| f(model)),
+        )
+    }
+
+    pub fn connect_views_changed<F: Fn(&Self) + 'static>(&self, f: F) -> glib::SignalHandlerId {
+        self.connect_closure(
+            "views-changed",
+            false,
+            closure_local!(move |model: &AppModel| f(model)),
+        )
+    }
+
+    /// Keeps `state` and signals what changed, after releasing the borrow,
+    /// so handlers can read the model.
+    fn apply(&self, state: State) {
+        let old = self.imp().state.replace(state);
+        let (chats_changed, views_changed) = {
+            let new = self.imp().state.borrow();
+            (old.chats != new.chats, old.views != new.views)
         };
-
-        // Select first, so that listeners of `chats` see the new selection.
-        let selected = objects
-            .iter()
-            .find(|chat| Some(chat.id()) == state.selected_chat_id)
-            .cloned();
-        if *imp.selected_chat.borrow() != selected {
-            imp.selected_chat.replace(selected);
-            self.notify_selected_chat();
-        }
-
         if chats_changed {
-            imp.rendered_chats.replace(state.chats.clone());
-            imp.chats.splice(0, imp.chats.n_items(), &objects);
+            self.emit_by_name::<()>("chats-changed", &[]);
         }
-
-        if *imp.draft.borrow() != state.draft {
-            imp.draft.replace(state.draft.clone());
-            self.notify_draft();
+        if views_changed {
+            self.emit_by_name::<()>("views-changed", &[]);
         }
     }
 }

@@ -2,6 +2,7 @@
 <!-- The prefix is APP_ID as a path (see //build:app.bzl). -->
 <gresources>
   <gresource prefix="/dev/miracle/Miracle">
+    <file preprocess="xml-stripblanks">ui/chat_view.ui</file>
     <file preprocess="xml-stripblanks">ui/window.ui</file>
     <file>style.css</file>
   </gresource>

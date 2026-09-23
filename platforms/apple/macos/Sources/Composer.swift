@@ -46,8 +46,8 @@ struct Composer: View {
         }
         .glassEffect(.regular.interactive(), in: .rect(cornerRadius: Layout.cornerRadius))
         .frame(maxWidth: Layout.contentMaxWidth)
-        .padding(.horizontal, Layout.contentPadding)
-        .padding(.bottom, Layout.contentVerticalPadding)
+        // The same inset from the sides and the bottom of the window.
+        .padding([.horizontal, .bottom], Layout.contentPadding)
     }
 
     /// Only disables the button: the core ignores blank drafts itself.

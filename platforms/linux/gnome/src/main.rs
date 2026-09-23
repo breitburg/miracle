@@ -3,7 +3,8 @@
 //! Rust shells link the core directly, with no FFI layer in between.
 
 mod app_model;
-mod chat_object;
+mod chat_view;
+mod chat_window;
 mod message_object;
 mod period;
 mod window;
@@ -11,6 +12,7 @@ mod window;
 use adw::prelude::*;
 use gtk::{gio, glib};
 
+use crate::app_model::AppModel;
 use crate::window::Window;
 
 const APP_ID: &str = env!("APP_ID");
@@ -29,12 +31,14 @@ fn main() -> glib::ExitCode {
         .build();
 
     app.connect_startup(|_| {
-        window::provide_css_variables(&gtk::gdk::Display::default().expect("a display exists"));
+        chat_view::provide_css_variables(&gtk::gdk::Display::default().expect("a display exists"));
     });
-    app.connect_activate(|app| {
+    // One model for every window.
+    let model = AppModel::default();
+    app.connect_activate(move |app| {
         let window = app
             .active_window()
-            .unwrap_or_else(|| Window::new(app).upcast());
+            .unwrap_or_else(|| Window::new(app, &model).upcast());
         window.present();
     });
     app.set_accels_for_action("window.close", &["<Control>w"]);

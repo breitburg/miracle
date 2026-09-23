@@ -2,12 +2,12 @@ import SwiftUI
 
 @main
 struct MiracleApp: App {
+    /// One store for every window.
     @State private var model = AppModel()
 
     var body: some Scene {
-        // One window: every window would show the same store and selection.
         Window("Miracle", id: "main") {
-            RootView()
+            MainWindow()
                 .environment(model)
         }
         .defaultSize(width: 1000, height: 720)
@@ -15,7 +15,18 @@ struct MiracleApp: App {
         .defaultLaunchBehavior(.presented)
         .windowToolbarStyle(.unified)
         .commands {
-            MiracleCommands(model: model)
+            MiracleCommands()
         }
+
+        // "Open in New Window": one window per core view id.
+        WindowGroup("Chat", for: UInt64.self) { $viewId in
+            ChatWindow(viewId: viewId)
+                .environment(model)
+        }
+        // Views live in memory, so there is nothing to restore after a
+        // relaunch.
+        .restorationBehavior(.disabled)
+        .defaultSize(width: 640, height: 720)
+        .windowToolbarStyle(.unified)
     }
 }

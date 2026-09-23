@@ -1,16 +1,21 @@
+import MiracleCore
 import SwiftUI
 
-/// The open chat: its messages, or a hint for the new chat, above the
-/// composer.
+/// One core view: its chat's messages, or a hint for a new chat, above the
+/// composer with the view's draft. Views on the same chat share its
+/// messages, since they all read the shared store.
 struct ChatView: View {
+    let viewId: UInt64
+
     @Environment(AppModel.self) private var model
     @FocusState private var isComposerFocused: Bool
 
     var body: some View {
-        let chat = model.selectedChat
+        let chatId = model.view(viewId)?.chatId
+        let chat = chatId.flatMap(model.chat)
         Group {
             if let chat {
-                MessageList(chat: chat)
+                MessageList(messages: chat.messages)
                     // A fresh scroll view per chat opens at its last message.
                     .id(chat.id)
             } else {
@@ -25,37 +30,27 @@ struct ChatView: View {
         // Only scroll views get the soft scroll-edge effect; without this the
         // empty new chat would show a toolbar separator.
         .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
-        .toolbar {
-            // In the chat's toolbar, so it stays in reach when the sidebar
-            // is hidden.
-            ToolbarItem(placement: .primaryAction) {
-                Button("New Chat", systemImage: "square.and.pencil") {
-                    model.send(.openNewChat)
-                }
-                .help("New Chat")
-            }
-        }
         .frame(minWidth: 360, minHeight: 240)
         .defaultFocus($isComposerFocused, true)
         // Only a new chat takes focus: picking a chat keeps it in the
         // sidebar, which would otherwise lose its selection highlight.
-        .onChange(of: model.selectedChatId) { _, id in
-            if id == nil { isComposerFocused = true }
+        .onChange(of: chatId) {
+            if chatId == nil { isComposerFocused = true }
         }
     }
 
-    /// The core's draft: every edit is sent to it.
+    /// The view's draft in the core: every edit is sent to it.
     private var draft: Binding<String> {
         Binding {
-            model.draft
+            model.view(viewId)?.draft ?? ""
         } set: { text in
-            model.send(.editDraft(text: text))
+            model.send(.editDraft(viewId: viewId, text: text))
         }
     }
 
     private func send() {
         withAnimation(.snappy) {
-            model.send(.sendMessage(sentAt: .now))
+            model.send(.sendMessage(viewId: viewId, sentAt: .now))
         }
     }
 }

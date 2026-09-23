@@ -27,6 +27,7 @@ mod reducer;
 mod section;
 mod state;
 mod store;
+mod view;
 
 pub use action::Action;
 pub use chat::Chat;
@@ -35,3 +36,4 @@ pub use reducer::reduce;
 pub use section::{ChatSection, ChatSummary, Period};
 pub use state::State;
 pub use store::Store;
+pub use view::ChatViewState;

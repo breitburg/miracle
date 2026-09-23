@@ -17,9 +17,13 @@ pub enum Period {
     /// 8 to 30 days ago.
     PreviousThirtyDays,
     /// Earlier this year. `month` is 1 (January) to 12.
-    Month { month: u8 },
+    Month {
+        month: u8,
+    },
     /// Before this year.
-    Year { year: i16 },
+    Year {
+        year: i16,
+    },
 }
 
 /// Consecutive chats updated in the same [`Period`].
@@ -124,7 +128,10 @@ mod tests {
         assert_eq!(period(date(2026, 9, 15), today), Period::PreviousThirtyDays);
         assert_eq!(period(date(2026, 8, 24), today), Period::PreviousThirtyDays);
         assert_eq!(period(date(2026, 8, 23), today), Period::Month { month: 8 });
-        assert_eq!(period(date(2025, 12, 31), today), Period::Year { year: 2025 });
+        assert_eq!(
+            period(date(2025, 12, 31), today),
+            Period::Year { year: 2025 }
+        );
         assert_eq!(
             period(date(2026, 12, 31), date(2027, 1, 2)),
             Period::PreviousSevenDays
