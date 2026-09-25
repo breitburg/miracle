@@ -20,22 +20,10 @@
 //!   `Store::subscribe(Arc<dyn StateObserver>)`. Shells hop the callback onto
 //!   their main thread (`@MainActor` in Swift, `glib::MainContext` in GTK).
 
-mod action;
-mod chat;
-mod message;
-mod reducer;
-mod section;
-mod session;
-mod state;
+mod logic;
 mod store;
-mod view;
+mod types;
 
-pub use action::Action;
-pub use chat::Chat;
-pub use message::{Message, Role};
-pub use reducer::reduce;
-pub use section::{Period, SessionSection, SessionSummary};
-pub use session::Session;
-pub use state::State;
+pub use logic::{Period, SessionSection, SessionSummary, reduce};
 pub use store::Store;
-pub use view::SessionViewState;
+pub use types::{Action, Chat, Message, Model, Role, Session, SessionViewState, State};

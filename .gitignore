@@ -5,6 +5,10 @@
 /rust-project.json
 /.rules_rust_analyzer/
 
+# Cargo output from editors that run `cargo check` on the ffi/Cargo.toml stub
+/ffi/Cargo.lock
+/ffi/target/
+
 # macOS
 .DS_Store
 

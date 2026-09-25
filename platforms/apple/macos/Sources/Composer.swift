@@ -29,7 +29,9 @@ struct Composer: View {
                     }
                     return .handled
                 }
-                .padding(.leading, Layout.contentPadding)
+                // In line with assistant text: the row's padding plus the
+                // padding inside user bubbles.
+                .padding(.leading, Layout.contentPadding + Layout.bubblePadding)
                 .padding(.vertical, 11)
 
             Button(action: onSend) {

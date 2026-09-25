@@ -8,13 +8,25 @@ template $MiracleWindow: Adw.ApplicationWindow {
   // Breakpoints need a minimum window size.
   width-request: 360;
   height-request: 294;
-  // Narrow windows show the sidebar as an overlay, as GNOME Calendar does.
-  // 640sp = the 280sp sidebar + the 360sp minimum window width for the chat.
+  // Narrow windows show the sidebars as overlays, as GNOME Calendar does:
+  // first the right one, then both. Only one breakpoint applies at a time,
+  // so the narrower one collapses both.
+  // 920sp = the two 280sp sidebars + the 360sp minimum width for the chat.
+  Adw.Breakpoint {
+    condition ("max-width: 920sp")
+
+    setters {
+      info_split_view.collapsed: true;
+    }
+  }
+
+  // 640sp = the 280sp sidebar + the 360sp minimum width for the chat.
   Adw.Breakpoint {
     condition ("max-width: 640sp")
 
     setters {
       split_view.collapsed: true;
+      info_split_view.collapsed: true;
     }
   }
 
@@ -35,48 +47,84 @@ template $MiracleWindow: Adw.ApplicationWindow {
       content: Adw.Sidebar sidebar {};
     };
 
-    // `view`: the flat bars have no background, so the page itself must
-    // have the view background of its ListView (as GNOME Calendar does).
-    content: Adw.ToolbarView {
-      [top]
-      Adw.HeaderBar {
-        // As in GNOME Calendar: a toggle at the start, F9 as the shortcut.
+    // The right sidebar, with the same fixed width as the left one. Pinned:
+    // a resize collapses it to an overlay but never hides or shows it; only
+    // the toggle does. Hidden until the toggle opens it.
+    content: Adw.OverlaySplitView info_split_view {
+      sidebar-position: end;
+      pin-sidebar: true;
+      show-sidebar: false;
+      min-sidebar-width: 280;
+      max-sidebar-width: 280;
 
-        [start]
-        ToggleButton {
-          icon-name: "sidebar-show-symbolic";
-          tooltip-text: _("Toggle Sidebar");
-          active: bind split_view.show-sidebar bidirectional;
+      sidebar: Adw.ToolbarView {
+        [top]
+        Adw.HeaderBar {
+          show-title: false;
+        }
 
-          ShortcutController {
-            scope: managed;
-
-            Shortcut {
-              trigger: "F9";
-              action: "activate";
+        content: Adw.PreferencesPage {
+          Adw.PreferencesGroup {
+            // The main view's session; filled from the core's models.
+            Adw.ComboRow model_row {
+              title: _("Model");
             }
           }
-        }
-
-        // Here rather than in the sidebar, so it stays in reach when the
-        // sidebar is collapsed.
-        [end]
-        Button {
-          icon-name: "chat-message-new-symbolic";
-          tooltip-text: _("New Chat");
-          action-name: "session.new";
-        }
-
-        title-widget: Adw.WindowTitle {
-          title: bind chat_view.title;
         };
-      }
+      };
 
-      content: $MiracleChatView chat_view {};
+      // `view`: the flat bars have no background, so the page itself must
+      // have the view background of its ListView (as GNOME Calendar does).
+      content: Adw.ToolbarView {
+        [top]
+        Adw.HeaderBar {
+          // As in GNOME Calendar: a toggle at the start, F9 as the shortcut.
 
-      styles [
-        "view",
-      ]
+          [start]
+          ToggleButton {
+            icon-name: "sidebar-show-symbolic";
+            tooltip-text: _("Toggle Sidebar");
+            active: bind split_view.show-sidebar bidirectional;
+
+            ShortcutController {
+              scope: managed;
+
+              Shortcut {
+                trigger: "F9";
+                action: "activate";
+              }
+            }
+          }
+
+          // The first end child is the rightmost: it mirrors the toggle of
+          // the left sidebar.
+          [end]
+          ToggleButton {
+            icon-name: "sidebar-show-right-symbolic";
+            tooltip-text: _("Toggle Right Sidebar");
+            active: bind info_split_view.show-sidebar bidirectional;
+          }
+
+          // Here rather than in the sidebar, so it stays in reach when the
+          // sidebar is collapsed.
+          [end]
+          Button {
+            icon-name: "chat-message-new-symbolic";
+            tooltip-text: _("New Chat");
+            action-name: "session.new";
+          }
+
+          title-widget: Adw.WindowTitle {
+            title: bind chat_view.title;
+          };
+        }
+
+        content: $MiracleChatView chat_view {};
+
+        styles [
+          "view",
+        ]
+      };
     };
   };
 }

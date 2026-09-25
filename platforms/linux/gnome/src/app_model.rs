@@ -11,7 +11,7 @@ use gtk::glib;
 use gtk::glib::closure_local;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
-use miracle_core::{Action, Session, SessionSection, SessionViewState, State};
+use miracle_core::{Action, Model, Session, SessionSection, SessionViewState, State};
 
 mod imp {
     use std::cell::RefCell;
@@ -85,17 +85,22 @@ impl AppModel {
     }
 
     pub fn session(&self, id: u64) -> Option<Session> {
-        let state = self.imp().state.borrow();
-        state
-            .sessions
-            .iter()
-            .find(|session| session.id == id)
-            .cloned()
+        self.imp().state.borrow().session(id).cloned()
     }
 
     pub fn view(&self, id: u64) -> Option<SessionViewState> {
-        let state = self.imp().state.borrow();
-        state.views.iter().find(|view| view.id == id).cloned()
+        self.imp().state.borrow().view(id).cloned()
+    }
+
+    /// The session the view shows; `None` for a new session. Clones
+    /// nothing, so it is cheap on every keystroke.
+    pub fn shown_session_id(&self, view_id: u64) -> Option<u64> {
+        self.imp().state.borrow().view(view_id)?.session_id
+    }
+
+    /// The session's model, without a clone of its chat.
+    pub fn session_model(&self, id: u64) -> Option<Model> {
+        Some(self.imp().state.borrow().session(id)?.model)
     }
 
     /// The sessions grouped for the sidebar, as of now.

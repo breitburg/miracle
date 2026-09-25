@@ -1,4 +1,4 @@
-use crate::{Action, Chat, Message, Role, Session, SessionViewState, State};
+use crate::{Action, Chat, Message, Model, Role, Session, SessionViewState, State};
 
 /// Applies `action` to `state`. Pure: all business rules live here.
 pub fn reduce(mut state: State, action: Action) -> State {
@@ -7,7 +7,7 @@ pub fn reduce(mut state: State, action: Action) -> State {
             let id = state.views.iter().map(|view| view.id).max().unwrap_or(0) + 1;
             state.views.push(SessionViewState {
                 id,
-                session_id: session_id.filter(|&session_id| has_session(&state, session_id)),
+                session_id: session_id.filter(|&session_id| state.session(session_id).is_some()),
                 draft: String::new(),
             });
         }
@@ -16,20 +16,25 @@ pub fn reduce(mut state: State, action: Action) -> State {
             view_id,
             session_id,
         } => {
-            let exists = session_id.is_none_or(|session_id| has_session(&state, session_id));
-            if let Some(view) = view_mut(&mut state, view_id)
+            let exists = session_id.is_none_or(|session_id| state.session(session_id).is_some());
+            if let Some(view) = state.view_mut(view_id)
                 && exists
             {
                 view.session_id = session_id;
             }
         }
+        Action::SetModel { session_id, model } => {
+            if let Some(session) = state.session_mut(session_id) {
+                session.model = model;
+            }
+        }
         Action::EditDraft { view_id, text } => {
-            if let Some(view) = view_mut(&mut state, view_id) {
+            if let Some(view) = state.view_mut(view_id) {
                 view.draft = text;
             }
         }
         Action::SendMessage { view_id, sent_at } => {
-            let Some(view) = state.views.iter().find(|view| view.id == view_id) else {
+            let Some(view) = state.view(view_id) else {
                 return state;
             };
             let content = view.draft.trim().to_owned();
@@ -63,6 +68,7 @@ pub fn reduce(mut state: State, action: Action) -> State {
                         .unwrap_or(0)
                         + 1,
                     title: title_from(&message.content),
+                    model: Model::default(),
                     updated_at: sent_at,
                     chat: Chat {
                         messages: vec![message],
@@ -78,23 +84,12 @@ pub fn reduce(mut state: State, action: Action) -> State {
                     ..session
                 },
             );
-            let view = view_mut(&mut state, view_id).expect("the view was found above");
+            let view = state.view_mut(view_id).expect("the view was found above");
             view.session_id = Some(session_id);
             view.draft.clear();
         }
     }
     state
-}
-
-fn has_session(state: &State, session_id: u64) -> bool {
-    state
-        .sessions
-        .iter()
-        .any(|session| session.id == session_id)
-}
-
-fn view_mut(state: &mut State, view_id: u64) -> Option<&mut SessionViewState> {
-    state.views.iter_mut().find(|view| view.id == view_id)
 }
 
 /// A new session's title: the first line of its first message.
@@ -116,6 +111,7 @@ mod tests {
         Session {
             id,
             title: format!("Session {id}"),
+            model: Model::default(),
             updated_at: at(1000 - age_secs),
             chat: Chat::default(),
         }
@@ -235,8 +231,22 @@ mod tests {
                 content: "Plan a trip\nto Lisbon".to_owned(),
             }]
         );
+        assert_eq!(top.model, Model::default());
         assert_eq!(view(&s, 1).session_id, Some(3));
         assert_eq!(view(&s, 1).draft, "");
+    }
+
+    #[test]
+    fn set_model_changes_only_its_session() {
+        let s = reduce(
+            state(),
+            Action::SetModel {
+                session_id: 2,
+                model: Model::Sonnet5,
+            },
+        );
+        assert_eq!(s.sessions[1].model, Model::Sonnet5);
+        assert_eq!(s.sessions[0].model, Model::default());
     }
 
     #[test]

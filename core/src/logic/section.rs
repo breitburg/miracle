@@ -100,7 +100,7 @@ mod tests {
     use jiff::civil::date;
 
     use super::*;
-    use crate::Chat;
+    use crate::{Chat, Model};
 
     fn at(date: Date, hour: i8, time_zone: &TimeZone) -> SystemTime {
         date.at(hour, 0, 0, 0)
@@ -114,6 +114,7 @@ mod tests {
         Session {
             id,
             title: format!("Session {id}"),
+            model: Model::default(),
             updated_at,
             chat: Chat::default(),
         }

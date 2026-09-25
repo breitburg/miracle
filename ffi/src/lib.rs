@@ -8,8 +8,8 @@ use std::sync::Arc;
 use std::time::SystemTime;
 
 use miracle_core::{
-    Action, Chat, Message, Period, Role, Session, SessionSection, SessionSummary, SessionViewState,
-    State,
+    Action, Chat, Message, Model, Period, Role, Session, SessionSection, SessionSummary,
+    SessionViewState, State,
 };
 
 uniffi::setup_scaffolding!();
@@ -26,6 +26,13 @@ pub enum Role {
     Assistant,
 }
 
+#[uniffi::remote(Enum)]
+pub enum Model {
+    Opus5_5,
+    Sonnet5,
+    Haiku4_5,
+}
+
 #[uniffi::remote(Record)]
 pub struct Chat {
     pub messages: Vec<Message>,
@@ -35,6 +42,7 @@ pub struct Chat {
 pub struct Session {
     pub id: u64,
     pub title: String,
+    pub model: Model,
     pub updated_at: SystemTime,
     pub chat: Chat,
 }
@@ -63,6 +71,10 @@ pub enum Action {
     ShowSession {
         view_id: u64,
         session_id: Option<u64>,
+    },
+    SetModel {
+        session_id: u64,
+        model: Model,
     },
     EditDraft {
         view_id: u64,
@@ -94,6 +106,24 @@ pub struct SessionSection {
 pub struct SessionSummary {
     pub id: u64,
     pub title: String,
+}
+
+/// Every model, in the order shells list them.
+#[uniffi::export]
+pub fn models() -> Vec<Model> {
+    Model::ALL.to_vec()
+}
+
+/// The model of a new session.
+#[uniffi::export]
+pub fn default_model() -> Model {
+    Model::default()
+}
+
+/// The API id of `model`.
+#[uniffi::export]
+pub fn model_id(model: Model) -> String {
+    model.id().to_owned()
 }
 
 /// Foreign handle to the core [`miracle_core::Store`].

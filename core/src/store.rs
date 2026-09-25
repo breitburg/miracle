@@ -2,8 +2,8 @@ use std::mem;
 use std::sync::{Mutex, PoisonError};
 use std::time::{Duration, SystemTime};
 
-use crate::section::session_sections;
-use crate::{Action, Chat, Message, Role, Session, SessionSection, State, reduce};
+use crate::logic::session_sections;
+use crate::{Action, Chat, Message, Model, Role, Session, SessionSection, State, reduce};
 
 /// Owns the current [`State`] and applies [`Action`]s to it.
 ///
@@ -164,6 +164,7 @@ impl Store {
             .map(|((title, age, messages), id)| Session {
                 id,
                 title: title.to_owned(),
+                model: Model::default(),
                 updated_at: now - Duration::from_secs(age),
                 chat: Chat {
                     messages: messages

@@ -3,7 +3,7 @@
 use adw::prelude::*;
 use adw::subclass::prelude::*;
 use gtk::{gio, glib};
-use miracle_core::Action;
+use miracle_core::{Action, Model};
 
 use crate::app_model::AppModel;
 use crate::period;
@@ -12,8 +12,8 @@ use crate::session_window;
 mod imp {
     use std::cell::{Cell, OnceCell, RefCell};
 
+    use adw::prelude::*;
     use adw::subclass::prelude::*;
-    use gtk::prelude::*;
     use gtk::{gdk, gio, glib};
 
     use crate::app_model::AppModel;
@@ -36,6 +36,8 @@ mod imp {
         pub(super) sidebar: TemplateChild<adw::Sidebar>,
         #[template_child]
         pub(super) chat_view: TemplateChild<ChatView>,
+        #[template_child]
+        pub(super) model_row: TemplateChild<adw::ComboRow>,
     }
 
     #[glib::object_subclass]
@@ -99,6 +101,14 @@ mod imp {
                 #[weak]
                 window,
                 move |_| window.select_shown_session()
+            ));
+
+            let ids: Vec<_> = super::Model::ALL.iter().map(|model| model.id()).collect();
+            self.model_row.set_model(Some(&gtk::StringList::new(&ids)));
+            self.model_row.connect_selected_notify(glib::clone!(
+                #[weak]
+                window,
+                move |row| window.set_model(row.selected())
             ));
 
             self.sidebar.connect_activated(glib::clone!(
@@ -171,13 +181,11 @@ impl Window {
         self.select_shown_session();
     }
 
-    /// Selects the session the main view shows; nothing for a new session.
+    /// Selects the session the main view shows, and its model; nothing for
+    /// a new session.
     fn select_shown_session(&self) {
         let imp = self.imp();
-        let shown = self
-            .model()
-            .view(imp.chat_view.view_id())
-            .and_then(|view| view.session_id);
+        let shown = self.shown_session_id();
         let position = imp
             .items
             .borrow()
@@ -185,6 +193,38 @@ impl Window {
             .position(|(_, session_id)| Some(*session_id) == shown);
         imp.sidebar
             .set_selected(position.map_or(gtk::INVALID_LIST_POSITION, |position| position as u32));
+        self.select_shown_model(shown);
+    }
+
+    /// The session the main view shows; `None` for a new session.
+    fn shown_session_id(&self) -> Option<u64> {
+        self.model()
+            .shown_session_id(self.imp().chat_view.view_id())
+    }
+
+    /// Selects the model of the shown session. A new session has none yet,
+    /// so the row shows the default and is insensitive.
+    fn select_shown_model(&self, shown: Option<u64>) {
+        let imp = self.imp();
+        let model = shown.and_then(|session_id| self.model().session_model(session_id));
+        let position = Model::ALL
+            .iter()
+            .position(|candidate| *candidate == model.unwrap_or_default())
+            .expect("ALL has every model");
+        imp.model_row.set_sensitive(model.is_some());
+        imp.model_row.set_selected(position as u32);
+    }
+
+    fn set_model(&self, position: u32) {
+        let (Some(session_id), Some(model)) =
+            (self.shown_session_id(), Model::ALL.get(position as usize))
+        else {
+            return;
+        };
+        self.model().send(Action::SetModel {
+            session_id,
+            model: *model,
+        });
     }
 
     fn session_id_of(&self, item: &adw::SidebarItem) -> Option<u64> {

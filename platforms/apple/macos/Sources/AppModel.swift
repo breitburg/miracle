@@ -20,6 +20,9 @@ final class AppModel {
     /// The main window's view, open for the app's lifetime, on the newest
     /// session.
     @ObservationIgnored let mainViewId: UInt64
+    /// The session the main view shows; `nil` for a new session. Kept apart
+    /// from `views`, so typing a draft does not redraw its readers.
+    private(set) var mainSessionId: UInt64?
 
     init() {
         mainViewId = store.openView(sessionId: store.state().sessions.first?.id)
@@ -52,6 +55,8 @@ final class AppModel {
         }
         if state.views != views {
             views = state.views
+            let shown = view(mainViewId)?.sessionId
+            if shown != mainSessionId { mainSessionId = shown }
         }
     }
 }

@@ -203,7 +203,10 @@ mod imp {
             self.composer_clamp.set_margin_end(super::CONTENT_PADDING);
             self.composer_clamp
                 .set_margin_bottom(super::CONTENT_PADDING);
-            self.prompt.set_left_margin(super::CONTENT_PADDING);
+            // In line with assistant text: the row's padding plus the
+            // padding inside user bubbles.
+            self.prompt
+                .set_left_margin(super::CONTENT_PADDING + super::BUBBLE_PADDING);
             self.prompt.set_right_margin(super::COMPOSER_SPACING);
             self.send_button.set_margin_top(super::COMPOSER_INSET);
             self.send_button.set_margin_bottom(super::COMPOSER_INSET);

@@ -19,5 +19,6 @@ struct MiracleCommands: Commands {
             .disabled(newSession == nil)
         }
         SidebarCommands()
+        InspectorCommands()
     }
 }

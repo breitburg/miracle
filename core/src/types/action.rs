@@ -1,5 +1,7 @@
 use std::time::SystemTime;
 
+use crate::Model;
+
 /// Every user intent a shell can send to the core. The shell gives the
 /// time, so [`crate::reduce`] stays pure.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -14,6 +16,8 @@ pub enum Action {
         view_id: u64,
         session_id: Option<u64>,
     },
+    /// Switches the session to `model`.
+    SetModel { session_id: u64, model: Model },
     /// Replaces the view's unsent text.
     EditDraft { view_id: u64, text: String },
     /// Sends the view's draft as a user message and clears the draft. The

@@ -50,12 +50,11 @@ listview.message-list > row {
   opacity: 1;
 }
 
-/* The composer: flat, with the fill of a user message and a corner
- * concentric with the send button. The text view drops its own background
- * to show the fill. */
+/* The composer: an Adwaita card (see chat_view.blp), with a corner
+ * concentric with the send button instead of the card's 12px. The text view
+ * drops its own background to show the card's fill. */
 .composer {
   border-radius: var(--composer-radius);
-  background-color: color-mix(in srgb, currentColor 10%, transparent);
 }
 
 .composer textview,
